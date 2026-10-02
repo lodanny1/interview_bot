@@ -2,9 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, MessageSquare, Calendar, TrendingUp, Plus, User } from "lucide-react";
+import {
+  LayoutDashboard,
+  MessageSquare,
+  Calendar,
+  TrendingUp,
+  Plus,
+  User,
+  Users,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mockUser } from "@/lib/mock-data";
+import { canManageUsers } from "@/lib/auth/access";
+import { getCurrentUser } from "@/lib/auth/session";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -15,6 +25,8 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const currentUser = getCurrentUser();
+  const showAdminLink = canManageUsers(currentUser);
 
   return (
     <aside className="flex flex-col w-60 min-h-screen bg-gray-100 border-r border-gray-200">
@@ -47,6 +59,22 @@ export function Sidebar() {
             </Link>
           );
         })}
+        
+        {showAdminLink && (
+          <Link
+            href="/admin/users"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+              pathname.startsWith("/admin")
+                ? "bg-gray-800 text-white"
+                : "text-gray-600 hover:bg-gray-200"
+            )}
+          >
+            <Users className="w-4 h-4" />
+            Admin Users
+          </Link>
+        )}
+
       </nav>
 
       {/* Practice Interview Button */}

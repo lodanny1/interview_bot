@@ -46,7 +46,7 @@ export function hasRequiredTier(
   user: AppUser | null,
   requiredTier: UserTier
 ): boolean {
-  if (!canAccessProtectedFeatures(user)) {
+  if (!user || user.status !== "approved") {
     return false;
   }
 

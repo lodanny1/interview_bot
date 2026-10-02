@@ -164,7 +164,7 @@ function VoiceMode() {
       {/* Waveform */}
       <div className="flex items-center justify-center gap-[2px] h-32">
         {Array.from({ length: 40 }).map((_, i) => {
-          const height = Math.random() * 80 + 20;
+          const height = ((i * 37) % 80) + 20;
           return (
             <div
               key={i}

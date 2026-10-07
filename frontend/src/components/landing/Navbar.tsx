@@ -10,7 +10,9 @@ import Image from "next/image";
 import { Menu, X, ArrowRight } from "lucide-react";
 import logo from "./images/logo.png";
 
-export default function Navbar() {
+// sectionBase lets other pages (like /signup) link back to the landing page's
+// sections, e.g. "/landing#features". On the landing page itself it stays "".
+export default function Navbar({ sectionBase = "" }: { sectionBase?: string }) {
   // true = phone menu is open, false = closed
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = () => setMenuOpen(false);
@@ -25,10 +27,10 @@ export default function Navbar() {
 
       {/* "open" is added to the class when the phone menu is showing */}
       <nav className={`nav-links ${menuOpen ? "open" : ""}`}>
-        <a href="#features" onClick={closeMenu}>Features</a>
-        <a href="#how-it-works" onClick={closeMenu}>How It Works</a>
-        <a href="#pricing" onClick={closeMenu}>Pricing</a>
-        <a href="#faq" onClick={closeMenu}>FAQ</a>
+        <a href={`${sectionBase}#features`} onClick={closeMenu}>Features</a>
+        <a href={`${sectionBase}#how-it-works`} onClick={closeMenu}>How It Works</a>
+        <a href={`${sectionBase}#pricing`} onClick={closeMenu}>Pricing</a>
+        <a href={`${sectionBase}#faq`} onClick={closeMenu}>FAQ</a>
         {/* These two only show inside the phone menu */}
         <Link href="/login" className="mobile-only" onClick={closeMenu}>Sign In</Link>
         <Link href="/signup" className="mobile-only" onClick={closeMenu}>Start Practicing</Link>

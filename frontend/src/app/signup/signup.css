@@ -1,0 +1,191 @@
+/* signup.css — Create Account page (Issue #01), from the SignUp Figma frame.
+   Builds on landing.css (colors, nav bar, footer, buttons). Every text color is
+   set explicitly so the page stays readable when the computer is in dark mode. */
+
+/* ---------- Page layout ---------- */
+.signup-page {
+  padding: 56px 48px 80px;
+  background:
+    radial-gradient(circle at 75% 15%, #e3eefc 0, transparent 45%),
+    radial-gradient(circle at 5% 70%, #e8f1fd 0, transparent 35%),
+    var(--bg);
+}
+.signup-inner {
+  max-width: 1200px; margin: 0 auto;
+  display: grid; grid-template-columns: 1fr minmax(380px, 470px);
+  align-items: start; gap: 64px;
+}
+
+/* ---------- Left side ---------- */
+.signup-intro { padding-top: 24px; }
+.pill-dot {
+  display: inline-block; width: 7px; height: 7px; margin-right: 6px;
+  border-radius: 50%; background: var(--blue); vertical-align: middle;
+}
+.signup-intro h1 {
+  margin-top: 22px; font-size: clamp(34px, 4.4vw, 52px);
+  font-weight: 800; line-height: 1.08; letter-spacing: -0.03em; color: var(--navy);
+}
+.signup-sub { margin-top: 20px; max-width: 520px; font-size: 18px; color: var(--text); }
+
+.robot-card {
+  position: relative; max-width: 420px; margin-top: 36px; padding: 24px 28px 22px;
+  background: #fff; border: 1px solid var(--border); border-radius: 22px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+}
+.robot-tag {
+  position: absolute; top: -14px; left: -12px; transform: rotate(-4deg);
+  padding: 5px 12px; border-radius: 999px; border: 1px solid #f3d27a;
+  background: #fff7dd; color: #5b3b00; font-size: 13px; font-weight: 700;
+}
+.robot-bubble {
+  position: absolute; top: 22px; right: 22px;
+  padding: 4px 12px; border-radius: 999px; border: 1px solid #cfe0f5;
+  background: #f4f8fe; color: var(--blue-dark); font-size: 13px; font-weight: 700;
+}
+.robot-card-art { display: flex; justify-content: center; padding: 20px 0 16px; }
+.robot-card-art img { width: min(240px, 80%); height: auto; }
+.robot-card-quote {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding-top: 16px; border-top: 1px solid var(--border);
+}
+.quote { font-weight: 700; color: var(--navy); }
+.quote-by { margin-top: 2px; font-size: 13px; color: var(--muted); }
+.sessions-pill {
+  flex-shrink: 0; padding: 5px 12px; border-radius: 999px;
+  background: #eaf2fd; color: var(--blue-dark); font-size: 13px; font-weight: 700;
+}
+
+/* ---------- Form card ---------- */
+.signup-card {
+  padding: 36px 36px 28px; background: #fff; color: var(--navy);
+  border: 1px solid var(--border); border-radius: 24px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+}
+.su-form { display: flex; flex-direction: column; gap: 18px; }
+.su-header h2 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; color: var(--navy); }
+.su-header p { margin-top: 6px; font-size: 15px; color: var(--muted); }
+.su-header strong { color: var(--navy); }
+
+.su-providers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.su-provider {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px 12px; border: 1px solid var(--border); border-radius: 12px;
+  background: #fff; color: var(--navy); font: inherit; font-weight: 600; font-size: 15px;
+  cursor: pointer;
+}
+.su-provider:hover:not(:disabled) { border-color: var(--blue); }
+.su-provider:disabled { cursor: not-allowed; opacity: 0.6; }
+
+.su-divider {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted);
+}
+.su-divider::before, .su-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+
+/* Fields */
+.su-field { display: flex; flex-direction: column; gap: 8px; }
+.su-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.su-label {
+  font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--navy);
+}
+.su-optional { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--muted); }
+.su-hint { font-size: 13px; color: var(--muted); }
+.su-input-wrap {
+  display: flex; align-items: center; gap: 10px; padding: 0 14px;
+  background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.su-input-wrap:focus-within { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(11, 107, 203, 0.15); }
+.su-input-error { border-color: #f1a7a7; }
+.su-input-error:focus-within { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12); }
+.su-input-icon { display: flex; color: #94a3b8; }
+.su-input {
+  flex: 1; min-width: 0; padding: 13px 0; border: 0; outline: none;
+  background: transparent; color: var(--navy); font: inherit; font-size: 15px;
+}
+.su-input::placeholder { color: #94a3b8; }
+.su-eye {
+  display: flex; padding: 4px; border: 0; background: none; color: #94a3b8; cursor: pointer;
+}
+.su-eye:hover { color: var(--navy); }
+.su-error { font-size: 14px; color: #b91c1c; }
+
+/* Password strength */
+.su-strength { display: flex; align-items: center; gap: 10px; margin-top: -8px; }
+.su-strength-bars { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.su-bar { height: 4px; border-radius: 4px; background: #e2e8f0; }
+.su-bar-weak { background: #ef4444; }
+.su-bar-fair { background: #f59e0b; }
+.su-bar-good { background: #3b82f6; }
+.su-bar-strong { background: #10b981; }
+.su-strength-label { min-width: 46px; text-align: right; font-size: 13px; font-weight: 600; }
+.su-text-weak { color: #dc2626; }
+.su-text-fair { color: #b45309; }
+.su-text-good { color: #1d4ed8; }
+.su-text-strong { color: #059669; }
+.su-missing { margin-top: -8px; font-size: 13px; color: var(--muted); }
+
+/* Terms checkbox */
+.su-terms { display: flex; flex-direction: column; gap: 6px; }
+.su-check { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text); cursor: pointer; }
+.su-check input { width: 18px; height: 18px; accent-color: var(--blue); cursor: pointer; }
+/* ".landing" prefix beats landing.css's "links inherit color" rule */
+.landing .su-check a { color: var(--blue); }
+.landing .su-check a:hover { text-decoration: underline; }
+
+/* Main button */
+.su-submit {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 15px; border: 0; border-radius: 12px;
+  background: var(--blue); color: #fff; font: inherit; font-size: 16px; font-weight: 700;
+  box-shadow: 0 10px 22px rgba(11, 107, 203, 0.25); cursor: pointer;
+  transition: background 0.15s;
+}
+.su-submit:hover:not(:disabled) { background: var(--blue-dark); }
+.su-submit:disabled { cursor: not-allowed; opacity: 0.65; }
+
+/* Messages */
+.su-alert { padding: 12px 14px; border-radius: 12px; font-size: 14px; }
+.su-alert-error { border: 1px solid #fecaca; background: #fef2f2; color: #b91c1c; }
+.su-alert-success { border: 1px solid #bbf7d0; background: #f0fdf4; color: #15803d; }
+.landing .su-link { color: var(--blue); font-weight: 600; }
+.landing .su-link:hover { text-decoration: underline; }
+.landing .su-alert .su-link { display: inline-block; margin-top: 4px; color: inherit; text-decoration: underline; }
+
+.su-row-between { display: flex; justify-content: space-between; gap: 12px; }
+.su-text-button {
+  border: 0; background: none; padding: 0; font: inherit; font-size: 14px; font-weight: 600;
+  color: var(--blue); cursor: pointer;
+}
+.su-text-button:hover:not(:disabled) { text-decoration: underline; }
+.su-text-button:disabled { opacity: 0.6; cursor: not-allowed; }
+.su-muted { color: var(--muted); font-weight: 500; }
+
+.su-footer {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  padding-top: 18px; border-top: 1px solid var(--border); font-size: 14px; color: var(--muted);
+}
+.su-trust {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px;
+  margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--muted);
+}
+.su-trust li { display: inline-flex; align-items: center; gap: 4px; }
+.su-trust svg { color: #10b981; }
+
+/* ---------- Tablet and phone ---------- */
+@media (max-width: 960px) {
+  .signup-inner { grid-template-columns: 1fr; gap: 40px; max-width: 560px; }
+  .signup-intro { padding-top: 0; }
+  .robot-card { display: none; }
+}
+@media (max-width: 768px) {
+  .signup-page { padding: 32px 16px 56px; }
+  .signup-card { padding: 28px 20px 22px; }
+  .signup-sub { font-size: 16px; }
+}
+@media (max-width: 380px) {
+  .su-providers { grid-template-columns: 1fr; }
+}

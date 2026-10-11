@@ -43,13 +43,9 @@ export default function Hero() {
         </div>
 
         <div className="hero-art">
-          <p className="handwriting hero-handwriting">
-            Better<br />Interviews<br />Brighter<br />Futures
-          </p>
           <div className="robot-circle">
             <Image src={robot} alt="Interview Bot robot waving" priority />
           </div>
-          <div className="speech-bubble">You&apos;ve got this! ✨</div>
         </div>
       </div>
 

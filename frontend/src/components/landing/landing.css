@@ -54,7 +54,6 @@
 .brand-logo { width: 32px; height: 32px; }
 .brand-logo.small { width: 22px; height: 22px; }
 .brand-name { font-weight: 700; font-size: 20px; color: var(--navy); }
-.brand-by { font-size: 13px; color: var(--muted); margin-top: 4px; }
 .nav-links { display: flex; gap: 36px; font-weight: 500; }
 .nav-links a:hover, .nav-signin:hover { color: var(--blue); }
 .nav-actions { display: flex; align-items: center; gap: 28px; }
@@ -98,15 +97,10 @@
   background: radial-gradient(circle, #f9fbfe 55%, #eef3fb 100%);
   display: grid; place-items: center; padding: 30px;
 }
+/* The waving arm sits on the right of the picture, so the head and body are
+   about 10% left of the image's middle. Nudge right so the robot looks centered. */
+.robot-circle img { transform: translateX(10%); }
 
-.speech-bubble {
-  position: absolute; top: 8%; right: 0;
-  background: #fff; border: 2px solid #cfe0f5; border-radius: 14px;
-  padding: 8px 16px; font-weight: 700; color: var(--blue-dark);
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
-}
-.handwriting { font-family: var(--font-caveat), cursive; color: var(--blue-dark); line-height: 1.15; }
-.hero-handwriting { position: absolute; top: -4%; left: -2%; font-size: 30px; transform: rotate(-8deg); }
 
 .preview-card {
   max-width: 1100px; margin: 64px auto 0;
@@ -166,14 +160,13 @@
   background: linear-gradient(135deg, #dbe9fb, #eef4fd 60%, #e2edfc);
   box-shadow: 0 16px 40px rgba(11, 107, 203, 0.08);
 }
-.cta-left { font-size: 34px; text-align: center; transform: rotate(-6deg); }
-.cta-center { text-align: center; }
+/* Text stays in the middle column; the robot sits on the right. */
+.cta-center { grid-column: 2; text-align: center; }
 .cta-center h2 { margin: 0 auto; max-width: 420px; }
 .cta-center p { margin: 16px auto 28px; max-width: 480px; font-size: 17px; }
 .cta-center small { display: block; margin-top: 14px; color: var(--muted); }
-.cta-right { display: flex; align-items: center; justify-content: center; gap: 20px; }
+.cta-right { grid-column: 3; display: flex; align-items: center; justify-content: center; gap: 20px; }
 .cta-right img { width: 120px; }
-.cta-right .handwriting { font-size: 24px; }
 
 /* ---------- Footer ---------- */
 .footer {
@@ -190,7 +183,7 @@
 @media (max-width: 1100px) {
   .feature-grid { grid-template-columns: repeat(3, 1fr); }
   .cta { grid-template-columns: 1fr; text-align: center; }
-  .cta-left { display: none; }
+  .cta-center, .cta-right { grid-column: auto; }
 }
 
 /* ---------- Phones (under 768px) — AC 4 ---------- */
@@ -210,8 +203,6 @@
   .hero { padding: 32px 20px 56px; }
   .hero-inner { grid-template-columns: 1fr; }
   .hero-art { order: -1; max-width: 300px; margin: 0 auto; }
-  .hero-handwriting { display: none; }
-  .speech-bubble { font-size: 13px; }
   .hero-sub { font-size: 16px; }
 
   .section { padding: 64px 20px; }

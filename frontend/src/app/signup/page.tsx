@@ -4,7 +4,7 @@
 
 import type { Metadata } from "next";
 import Image from "next/image";
-import { Inter, Caveat } from "next/font/google";
+import { Inter } from "next/font/google";
 import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
 import { SignUpForm } from "@/components/auth/SignUpForm";
@@ -18,11 +18,10 @@ export const metadata: Metadata = {
 };
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const caveat = Caveat({ subsets: ["latin"], weight: "600", variable: "--font-caveat" });
 
 export default function SignUpPage() {
   return (
-    <div className={`landing ${inter.variable} ${caveat.variable}`}>
+    <div className={`landing ${inter.variable}`}>
       <Navbar sectionBase="/landing" />
 
       <main className="signup-page">
@@ -43,8 +42,6 @@ export default function SignUpPage() {
             </p>
 
             <div className="robot-card">
-              <span className="robot-tag">Better Interviews ✨</span>
-              <span className="robot-bubble">You&apos;ve got this! ✨</span>
               <div className="robot-card-art">
                 <Image src={robot} alt="Interview Bot robot waving" priority />
               </div>
@@ -53,7 +50,6 @@ export default function SignUpPage() {
                   <p className="quote">&quot;The fastest way to ace your interviews.&quot;</p>
                   <p className="quote-by">— Interview Bot AI Coach</p>
                 </div>
-                <span className="sessions-pill">15,000+ Sessions</span>
               </div>
             </div>
           </section>

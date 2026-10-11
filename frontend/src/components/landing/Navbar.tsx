@@ -22,7 +22,6 @@ export default function Navbar({ sectionBase = "" }: { sectionBase?: string }) {
       <Link href="/" className="brand" onClick={closeMenu}>
         <Image src={logo} alt="" className="brand-logo" />
         <span className="brand-name">Interview Bot</span>
-        <span className="brand-by">by Phyyvve</span>
       </Link>
 
       {/* "open" is added to the class when the phone menu is showing */}

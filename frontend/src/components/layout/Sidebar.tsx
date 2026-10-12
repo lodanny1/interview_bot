@@ -12,6 +12,7 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 import { mockUser } from "@/lib/mock-data";
 import { canManageUsers } from "@/lib/auth/access";
 import { getCurrentUser } from "@/lib/auth/session";
@@ -88,6 +89,11 @@ export function Sidebar() {
           <Plus className="w-4 h-4" />
           New Practice Interview
         </Link>
+      </div>
+
+      {/* Log Out */}
+      <div className="px-4 pb-2">
+        <LogoutButton />
       </div>
 
       {/* User */}

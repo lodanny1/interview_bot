@@ -13,7 +13,9 @@ export interface SessionClaims {
   name?: string;
 }
 
-export const SESSION_COOKIE_NAME = "ib_session";
+// Defined in a dependency-free module so proxy.ts can share it.
+export { SESSION_COOKIE_NAME } from "./session-cookie-name";
+import { SESSION_COOKIE_NAME } from "./session-cookie-name";
 
 function createIdTokenVerifier(config: CognitoConfig) {
   return CognitoJwtVerifier.create({
@@ -57,6 +59,14 @@ export async function createSession(tokens: CognitoTokens): Promise<void> {
     path: "/",
     maxAge: Math.floor(expiresInSeconds),
   });
+}
+
+// Ends the session by removing the cookie. Must be called from a Server Action
+// or Route Handler. Only the ID token is stored, so there is no Cognito refresh
+// token to revoke; once the cookie is gone this app treats the user as signed out.
+export async function deleteSession(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.delete(SESSION_COOKIE_NAME);
 }
 
 // Returns verified identity claims, or null for a missing, invalid or expired

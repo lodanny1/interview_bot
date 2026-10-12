@@ -37,14 +37,15 @@ let cachedClient: {
   client: CognitoIdentityProviderClient;
 } | null = null;
 
-function getClient(region: string): CognitoIdentityProviderClient {
+// Exported so cognito-signup.ts reuses the same client and secret hash.
+export function getClient(region: string): CognitoIdentityProviderClient {
   if (cachedClient?.region !== region) {
     cachedClient = { region, client: new CognitoIdentityProviderClient({ region }) };
   }
   return cachedClient.client;
 }
 
-function computeSecretHash(
+export function computeSecretHash(
   username: string,
   clientId: string,
   clientSecret: string

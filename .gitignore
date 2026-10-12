@@ -50,3 +50,10 @@ Thumbs.db
 # Prisma local database files
 *.db
 *.db-journal
+
+# Python virtual environments
+venv/
+.venv/
+
+# Node dependencies
+node_modules/

@@ -9,8 +9,6 @@ export default function CallToAction() {
   return (
     <section className="section section-tinted">
       <div className="cta">
-        <p className="handwriting cta-left">A Brighter<br />You Awaits</p>
-
         <div className="cta-center">
           <h2>Ready to Ace Your Next Interview?</h2>
           <p>
@@ -25,7 +23,6 @@ export default function CallToAction() {
 
         <div className="cta-right">
           <Image src={robot} alt="Robot giving a thumbs up" />
-          <p className="handwriting">Practice<br />Improve<br />Succeed</p>
         </div>
       </div>
     </section>

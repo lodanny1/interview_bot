@@ -1,161 +1,238 @@
-import { Plus, ArrowRight } from "lucide-react";
+import {
+  ArrowRight,
+  Building2,
+  CalendarDays,
+  ChevronRight,
+  Code2,
+  BrainCircuit,
+  Mic,
+  Info,
+  Lightbulb,
+  CheckCircle2,
+  Play,
+  Target,
+  Timer,
+  TrendingUp,
+  MessageSquare,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
-import { mockStats, mockUpcoming, mockSessions } from "@/lib/mock-data";
+import { mockUpcoming, mockSessions, mockUser } from "@/lib/mock-data";
+
+// Not in mock data yet — swap for real values when available.
+const dailyGoal = { done: 45, target: 60 };
+const upcomingTime = "2:00 PM";
+const upcomingDuration = 45;
+
+type Tag = { label: string; tone: "good" | "improve" };
+type Session = (typeof mockSessions)[number] & { tags?: Tag[] };
 
 export default function DashboardPage() {
+  const sessions = (mockSessions as Session[]).slice(0, 2);
+
   return (
-    <div className="p-8">
+    <div className="p-10 w-full">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <Link
-          href="/interview/setup"
-          className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Practice Interview
-        </Link>
-      </div>
-
-      {/* Stats Row */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
-        <StatCard label="Total Sessions" value={mockStats.totalSessions} />
-        <StatCard label="Interviews This Month" value={mockStats.interviewsThisMonth} />
-        <StatCard label="Hours Practiced" value={mockStats.hoursPracticed} />
-        <StatCard label="Current Streak" value={mockStats.currentStreak} />
-      </div>
-
-      {/* Middle Row */}
-      <div className="grid grid-cols-3 gap-6 mb-8">
-        {/* Upcoming Interview */}
-        <div className="col-span-1 p-5 bg-gray-50 rounded-xl border border-gray-200">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-xs font-medium text-gray-500 uppercase">Upcoming Interview</span>
-            <span className="px-2 py-0.5 bg-gray-200 text-xs font-medium rounded">
-              In {mockUpcoming.daysUntil} days
-            </span>
-          </div>
-          <h3 className="text-xl font-bold text-gray-900 mb-1">{mockUpcoming.role}</h3>
-          <p className="text-sm text-gray-500 mb-4">
-            {mockUpcoming.company} • {mockUpcoming.type}
+      <div className="flex items-start justify-between gap-6 mb-10">
+        <div>
+          <h1 className="text-5xl font-bold tracking-tight text-primary mb-2">
+            Welcome back, {mockUser.name.split(" ")[0]}.
+          </h1>
+          <p className="text-lg text-tertiary">
+            You have 1 upcoming interview and 3 tasks to complete today.
           </p>
-          <Link href="/calendar" className="text-sm font-medium text-gray-700 flex items-center gap-1 hover:text-gray-900">
-            Prep Guide <ArrowRight className="w-3 h-3" />
-          </Link>
-        </div>
-
-        {/* Prep Progress */}
-        <div className="col-span-1 p-5 bg-gray-50 rounded-xl border border-gray-200 flex flex-col items-center justify-center">
-          <span className="text-xs font-medium text-gray-500 uppercase mb-3">Prep Progress</span>
-          <div className="relative w-24 h-24">
-            <svg className="w-24 h-24 -rotate-90" viewBox="0 0 36 36">
-              <path
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                fill="none"
-                stroke="#e5e7eb"
-                strokeWidth="3"
-              />
-              <path
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                fill="none"
-                stroke="#6b7280"
-                strokeWidth="3"
-                strokeDasharray="75, 100"
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xl font-bold">75%</span>
-              <span className="text-xs text-gray-500">Ready</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Calendar Widget */}
-        <div className="col-span-1 p-5 bg-gray-50 rounded-xl border border-gray-200">
-          <MiniCalendar />
         </div>
       </div>
 
-      {/* Recent Practice Sessions */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Practice Sessions</h2>
-          <Link href="/interviews" className="text-sm text-gray-500 hover:text-gray-700">
-            View all
+      {/* Top Row */}
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6 mb-10">
+        <DailyGoalCard done={dailyGoal.done} target={dailyGoal.target} />
+        <UpcomingCard />
+      </div>
+
+      {/* Recent Practice Analysis */}
+      <section className="p-6 bg-card rounded-2xl border border-line-subtle shadow-sm">
+        <div className="flex items-center justify-between pb-4 mb-2 border-b border-line-subtle">
+          <h2 className="text-2xl font-medium text-primary">
+            Recent Practice Analysis
+          </h2>
+          <Link
+            href="/interviews"
+            className="flex items-center gap-1 text-sm font-semibold text-link hover:text-link-hover"
+          >
+            View All <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
-        <div className="space-y-3">
-          {mockSessions.slice(0, 4).map((session) => (
-            <div
-              key={session.id}
-              className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 transition-colors cursor-pointer"
-            >
-              <div className="flex items-center gap-4">
-                <ModeIcon mode={session.mode} />
-                <div>
-                  <p className="font-medium text-gray-900">{session.title}</p>
-                  <p className="text-sm text-gray-500">
-                    {session.duration} min • {session.date}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <p className="text-xs text-gray-500 uppercase">Score</p>
-                  <p className="text-lg font-bold text-gray-900">{session.score}%</p>
-                </div>
-                <ArrowRight className="w-4 h-4 text-gray-400" />
-              </div>
-            </div>
+        <div className="divide-y divide-line-subtle">
+          {sessions.map((session) => (
+            <SessionRow key={session.id} session={session} />
           ))}
         </div>
+      </section>
+    </div>
+  );
+}
+
+function DailyGoalCard({ done, target }: { done: number; target: number }) {
+  const pct = Math.min(100, Math.round((done / target) * 100));
+  const onTrack = pct >= 50;
+  return (
+    <div className="p-6 bg-card rounded-2xl border border-line-subtle shadow-sm flex flex-col">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="text-xl font-medium text-primary">Daily Goal</h3>
+          <p className="text-sm text-tertiary">Practice minutes</p>
+        </div>
+        <div className="w-9 h-9 rounded-full bg-tinted flex items-center justify-center">
+          <Target className="w-5 h-5 text-cta" />
+        </div>
       </div>
-    </div>
-  );
-}
 
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
-      <p className="text-sm text-gray-500 mb-1">{label}</p>
-      <p className="text-3xl font-bold text-gray-900">{value}</p>
-    </div>
-  );
-}
-
-function ModeIcon({ mode }: { mode: string }) {
-  const icons: Record<string, string> = { text: "💬", voice: "🎙️", avatar: "🎥" };
-  return (
-    <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center text-lg">
-      {icons[mode] || "💬"}
-    </div>
-  );
-}
-
-function MiniCalendar() {
-  const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-semibold">May 2026</span>
-      </div>
-      <div className="grid grid-cols-7 gap-1 text-center">
-        {days.map((d) => (
-          <span key={d} className="text-[10px] font-medium text-gray-500">{d}</span>
-        ))}
-        {Array.from({ length: 35 }, (_, i) => {
-          const day = i - 3; // offset for month start
-          const num = day >= 0 && day < 31 ? day + 1 : null;
-          return (
-            <span
-              key={i}
-              className={`text-xs py-1 rounded ${num === 6 ? "bg-green-100 text-green-700 font-bold" : "text-gray-600"} ${!num ? "text-gray-300" : ""}`}
-            >
-              {num || ""}
+      <div className="flex-1 flex items-center justify-center py-2">
+        <div className="relative w-28 h-28">
+          <svg className="w-28 h-28 -rotate-90" viewBox="0 0 36 36">
+            <circle
+              cx="18"
+              cy="18"
+              r="15.9155"
+              fill="none"
+              stroke="var(--border-subtle)"
+              strokeWidth="3"
+            />
+            <circle
+              cx="18"
+              cy="18"
+              r="15.9155"
+              fill="none"
+              stroke="var(--bg-cta)"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeDasharray={`${pct}, 100`}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-3xl font-medium text-primary leading-none">
+              {done}
             </span>
-          );
-        })}
+            <span className="font-mono text-[11px] text-tertiary mt-1">
+              / {target} min
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 px-3 py-2 rounded-full bg-success-bg text-center">
+        <span className="font-mono text-xs text-success-text">
+          {onTrack
+            ? "On track to meet weekly target"
+            : "Keep going to hit today's goal"}
+        </span>
       </div>
     </div>
+  );
+}
+
+function UpcomingCard() {
+  return (
+    <div className="p-6 rounded-2xl bg-nav-section text-white shadow-sm flex flex-col justify-between min-h-[250px]">
+      <div className="flex items-start justify-between">
+        <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 font-mono text-xs uppercase tracking-wider">
+          <CalendarDays className="w-3.5 h-3.5" />
+          Upcoming Today
+        </span>
+        <span className="text-2xl font-medium">{upcomingTime}</span>
+      </div>
+
+      <div>
+        <h3 className="text-4xl font-bold tracking-tight mb-3">
+          {mockUpcoming.role}
+        </h3>
+        <div className="flex items-center gap-6 text-white/85 mb-6">
+          <span className="flex items-center gap-2">
+            <Building2 className="w-5 h-5" />
+            {mockUpcoming.company}
+          </span>
+          <span className="flex items-center gap-2">
+            <Timer className="w-5 h-5" />
+            {upcomingDuration} Min • {mockUpcoming.type}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/calendar"
+            className="inline-flex items-center gap-2 px-5 py-3 bg-white text-nav-section text-sm font-semibold rounded-lg hover:bg-white/90 transition-colors"
+          >
+            <Play className="w-4 h-4" />
+            Start Prep Session
+          </Link>
+          <Link
+            href="/calendar"
+            className="inline-flex items-center gap-2 px-5 py-3 border border-white/40 text-white text-sm font-semibold rounded-lg hover:bg-white/10 transition-colors"
+          >
+            <Info className="w-4 h-4" />
+            View Details
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const modeIcons: Record<string, LucideIcon> = {
+  text: Code2,
+  voice: Mic,
+  avatar: BrainCircuit,
+};
+
+function SessionRow({ session }: { session: Session }) {
+  const Icon = modeIcons[session.mode] ?? MessageSquare;
+  return (
+    <Link
+      href="/interviews"
+      className="flex items-center gap-4 py-5 hover:bg-hover/40 transition-colors -mx-2 px-2 rounded-lg"
+    >
+      <div className="w-12 h-12 shrink-0 rounded-xl bg-card border border-line flex items-center justify-center">
+        <Icon className="w-5 h-5 text-secondary" />
+      </div>
+
+      <div className="min-w-0">
+        <p className="text-lg font-medium text-primary truncate">
+          {session.title}
+        </p>
+        <p className="text-tertiary">
+          {session.date} • {session.duration} mins
+        </p>
+      </div>
+
+      <div className="flex-1 flex flex-wrap items-center gap-2 justify-start pl-2">
+        {session.tags?.map((tag) => (
+          <span
+            key={tag.label}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-mono text-[11px] ${
+              tag.tone === "good"
+                ? "bg-success-bg text-success-text"
+                : "bg-info-bg text-info-text border border-line-subtle"
+            }`}
+          >
+            {tag.tone === "good" ? (
+              <CheckCircle2 className="w-3.5 h-3.5" />
+            ) : (
+              <Lightbulb className="w-3.5 h-3.5" />
+            )}
+            {tag.label}
+          </span>
+        ))}
+      </div>
+
+      <div className="text-right shrink-0">
+        <p className="text-2xl font-medium text-primary leading-tight">
+          {session.score}/100
+        </p>
+        <p className="font-mono text-[11px] uppercase tracking-wider text-tertiary">
+          Overall Score
+        </p>
+      </div>
+      <ChevronRight className="w-5 h-5 text-tertiary shrink-0" />
+    </Link>
   );
 }

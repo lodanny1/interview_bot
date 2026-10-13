@@ -1,26 +1,177 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Dark mode = a `.dark` class on <html> (set by JS, see theme.ts) */
+@custom-variant dark (&:where(.dark, .dark *));
 
+/* ------------------------------------------------------------------ */
+/* Tailwind utilities -> point at the theme variables below            */
+/* `inline` = utilities read var(--x) directly, so they flip with .dark */
+/* ------------------------------------------------------------------ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Text:  text-primary, text-secondary, ... */
+  --color-primary: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-tertiary: var(--text-tertiary);
+  --color-placeholder: var(--text-placeholder);
+  --color-disabled: var(--text-disabled);
+  --color-inverse: var(--text-inverse);
+  --color-link: var(--text-link);
+  --color-link-hover: var(--text-link-hover);
+
+  /* Backgrounds:  bg-app, bg-card, bg-cta, ... */
+  --color-app: var(--bg-app);
+  --color-card: var(--bg-card);
+  --color-tinted: var(--bg-tinted);
+  --color-nav: var(--bg-nav);
+  --color-nav-section: var(--bg-nav-section);
+  --color-hover: var(--bg-hover);
+  --color-pressed: var(--bg-pressed);
+  --color-disabled-surface: var(--bg-disabled);
+  --color-cta: var(--bg-cta);
+  --color-cta-accent: var(--bg-cta-accent);
+  --color-cta-hover: var(--bg-cta-hover);
+  --color-cta-pressed: var(--bg-cta-pressed);
+  --color-cta-disabled: var(--bg-cta-disabled);
+
+  /* Borders:  border-line, border-line-strong, border-input-focus, ... */
+  --color-line-subtle: var(--border-subtle);
+  --color-line: var(--border-default);
+  --color-line-strong: var(--border-strong);
+  --color-line-heavy: var(--border-heavy);
+  --color-focus-ring: var(--border-focus-ring);
+  --color-input-default: var(--border-input-default);
+  --color-input-hover: var(--border-input-hover);
+  --color-input-focus: var(--border-input-focus);
+  --color-input-disabled: var(--border-input-disabled);
+  --color-input-error: var(--border-input-error);
+  --color-input-success: var(--border-input-success);
+
+  /* Status:  bg-error-bg, text-error-text, text-error, ... */
+  --color-error-bg: var(--error-bg);
+  --color-error: var(--error-default);
+  --color-error-text: var(--error-text);
+  --color-success-bg: var(--success-bg);
+  --color-success: var(--success-default);
+  --color-success-text: var(--success-text);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning: var(--warning-default);
+  --color-warning-text: var(--warning-text);
+  --color-info-bg: var(--info-bg);
+  --color-info: var(--info-default);
+  --color-info-text: var(--info-text);
 }
 
-@media (prefers-color-scheme: dark) {
+@layer base {
+  /* ---------------- Light theme (default) ---------------- */
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+    --text-primary: #001e3c;
+    --text-secondary: #00408a;
+    --text-tertiary: #4d8fbe;
+    --text-placeholder: #99c2de;
+    --text-disabled: #b8d8ee;
+    --text-inverse: #e8f4fb;
+    --text-link: #0070c7;
+    --text-link-hover: #005099;
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+    --bg-app: #eaf4fb;
+    --bg-card: #ffffff;
+    --bg-tinted: #d0e8f5;
+    --bg-nav: #001e3c;
+    --bg-nav-section: #00408a;
+    --bg-hover: #d0e8f5;
+    --bg-pressed: #99c2de;
+    --bg-disabled: #f0f8fc;
+    --bg-cta: #0070c7;
+    --bg-cta-accent: #0070c7;
+    --bg-cta-hover: #005ea8;
+    --bg-cta-pressed: #004d8a;
+    --bg-cta-disabled: #99c2de;
+
+    --border-subtle: #d0e8f5;
+    --border-default: #99c2de;
+    --border-strong: #4d8fbe;
+    --border-heavy: #00408a;
+    --border-focus-ring: #0070c7;
+    --border-input-default: #99c2de;
+    --border-input-hover: #4d8fbe;
+    --border-input-focus: #0070c7;
+    --border-input-disabled: #d0e8f5;
+    --border-input-error: #dc2626;
+    --border-input-success: #16a34a;
+
+    --error-bg: #fee2e2;
+    --error-default: #dc2626;
+    --error-text: #991b1b;
+
+    --success-bg: #dcfce7;
+    --success-default: #16a34a;
+    --success-text: #166534;
+
+    --warning-bg: #fef9c3;
+    --warning-default: #ca8a04;
+    --warning-text: #854d0e;
+
+    --info-bg: #d0e8f5;
+    --info-default: #00408a;
+    --info-text: #001e3c;
+  }
+
+  /* ---------------- Dark theme (same variable names) ---------------- */
+  .dark {
+    --text-primary: #e8f4fb;
+    --text-secondary: #99c2de;
+    --text-tertiary: #4d8fbe;
+    --text-placeholder: #2e5e80;
+    --text-disabled: #1a3d57;
+    --text-inverse: #001e3c;
+    --text-link: #4d8fbe;
+    --text-link-hover: #e8f4fb;
+
+    --bg-app: #040f1a;
+    --bg-card: #001e3c;
+    --bg-tinted: #00408a;
+    --bg-nav: #020a14;
+    --bg-nav-section: #001e3c;
+    --bg-hover: #00408a;
+    --bg-pressed: #0057a8;
+    --bg-disabled: #020d1c;
+    --bg-cta: #2e8fd5;
+    --bg-cta-accent: #2e8fd5;
+    --bg-cta-hover: #4d8fbe;
+    --bg-cta-pressed: #0070c7;
+    --bg-cta-disabled: #1a3d57;
+
+    --border-subtle: #00408a;
+    --border-default: #0057a8;
+    --border-strong: #0070c7;
+    --border-heavy: #4d8fbe;
+    --border-focus-ring: #2e8fd5;
+    --border-input-default: #0057a8;
+    --border-input-hover: #0070c7;
+    --border-input-focus: #2e8fd5;
+    --border-input-disabled: #00408a;
+    --border-input-error: #f87171;
+    --border-input-success: #4ade80;
+
+    --error-bg: #2d0a0a;
+    --error-default: #f87171;
+    --error-text: #fca5a5;
+
+    --success-bg: #052e16;
+    --success-default: #4ade80;
+    --success-text: #86efac;
+
+    --warning-bg: #1a1000;
+    --warning-default: #facc15;
+    --warning-text: #fde047;
+
+    --info-bg: #040f1a;
+    --info-default: #2e8fd5;
+    --info-text: #99c2de;
+  }
+
+  body {
+    background-color: var(--bg-app);
+    color: var(--text-primary);
+  }
 }

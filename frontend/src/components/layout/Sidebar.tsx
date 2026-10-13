@@ -13,8 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mockUser } from "@/lib/mock-data";
-import { canManageUsers } from "@/lib/auth/access";
-import { getCurrentUser } from "@/lib/auth/session";
+
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -25,8 +24,7 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const currentUser = getCurrentUser();
-  const showAdminLink = canManageUsers(currentUser);
+  const showAdminLink = false;
 
   return (
     <aside className="flex flex-col w-64 min-h-screen bg-card border-r border-line-subtle">

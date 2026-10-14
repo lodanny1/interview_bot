@@ -1,0 +1,21 @@
+/* login.css — Sign In page (Issue #02). Builds on landing.css and signup.css;
+   only the bits that differ from the sign-up page live here. */
+
+.login-inner { align-items: center; }
+.login-card { display: flex; flex-direction: column; gap: 24px; padding: 48px 48px 44px; }
+
+/* Handwritten "Better Interviews" sticker on the robot card */
+.login-sticker {
+  position: absolute; top: -18px; left: -32px; z-index: 1;
+  padding: 6px 14px; transform: rotate(-6deg);
+  background: #fffbea; border: 1px solid #f5e3a3; border-radius: 6px;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
+  font-family: "Segoe Print", "Bradley Hand", cursive; font-size: 13px; color: var(--navy);
+}
+
+.landing .login-forgot { align-self: flex-end; margin-top: -8px; font-size: 14px; }
+.login-submit { border-radius: 999px; }
+
+@media (max-width: 768px) {
+  .login-card { padding: 28px 20px 22px; }
+}

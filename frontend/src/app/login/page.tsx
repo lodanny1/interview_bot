@@ -1,12 +1,23 @@
+// Sign In page (Issue #02). Shares the sign-up page's layout and styles so the
+// two auth pages look like one site.
+
 import type { Metadata } from "next";
-import Link from "next/link";
-import { MessageSquare } from "lucide-react";
+import Image from "next/image";
+import { Inter } from "next/font/google";
+import Navbar from "@/components/landing/Navbar";
+import Footer from "@/components/landing/Footer";
 import { LoginForm } from "@/components/auth/LoginForm";
+import robot from "@/components/landing/images/robot-hero.png";
 import { loginAction } from "./actions";
+import "@/components/landing/landing.css";
+import "../signup/signup.css";
+import "./login.css";
 
 export const metadata: Metadata = {
   title: "Sign In - Phyyve",
 };
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export default async function LoginPage({
   searchParams,
@@ -17,37 +28,58 @@ export default async function LoginPage({
   const { reset } = await searchParams;
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
-      <div className="w-full max-w-sm space-y-6 rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <div className="w-10 h-10 bg-gray-300 rounded flex items-center justify-center">
-            <MessageSquare className="w-5 h-5 text-gray-600" />
-          </div>
-          <div className="space-y-1">
-            <h1 className="text-2xl font-bold text-gray-900">Sign In</h1>
-            <p className="text-sm text-gray-500">
-              Welcome back to Interview Bot.
+    <div className={`landing ${inter.variable}`}>
+      <Navbar sectionBase="/landing" />
+
+      <main className="signup-page">
+        <div className="signup-inner login-inner">
+          {/* Left side: headline and robot */}
+          <section className="signup-intro">
+            <h1>
+              Practice Interviews.
+              <br />
+              <span className="text-blue">Get Better Feedback.</span>
+            </h1>
+            <p className="signup-sub">
+              Log in to continue your personalized AI practice sessions, track
+              progress, and unlock actionable insights.
             </p>
-          </div>
+
+            <div className="robot-card">
+              <span className="login-sticker" aria-hidden="true">
+                Better Interviews ✨
+              </span>
+              <div className="robot-card-art">
+                <Image src={robot} alt="Interview Bot robot" priority />
+              </div>
+              <div className="robot-card-quote">
+                <div>
+                  <p className="quote">&quot;Practice makes progress.&quot;</p>
+                  <p className="quote-by">— Interview Bot Guide</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Right side: the form card */}
+          <section className="signup-card login-card" aria-labelledby="login-title">
+            <header className="su-header">
+              <h2 id="login-title">Welcome back</h2>
+              <p>Enter your credentials to access your interview practice dashboard.</p>
+            </header>
+
+            {reset === "success" && (
+              <p role="status" className="su-alert su-alert-success">
+                Password updated. Sign in with your new password.
+              </p>
+            )}
+
+            <LoginForm action={loginAction} />
+          </section>
         </div>
+      </main>
 
-        {reset === "success" && (
-          <p
-            role="status"
-            className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700"
-          >
-            Password updated. Sign in with your new password.
-          </p>
-        )}
-
-        <LoginForm action={loginAction} />
-
-        <p className="text-center text-sm text-gray-500">
-          <Link href="/forgot-password" className="font-medium text-gray-700 hover:underline">
-            Forgot password?
-          </Link>
-        </p>
-      </div>
-    </main>
+      <Footer />
+    </div>
   );
 }

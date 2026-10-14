@@ -52,7 +52,7 @@ describe("loginAction", () => {
       expect(signIn).toHaveBeenCalledWith(EMAIL, PASSWORD);
       expect(createSession).toHaveBeenCalledWith(TOKENS);
       expect(redirect).toHaveBeenCalledWith(POST_LOGIN_REDIRECT);
-      expect(POST_LOGIN_REDIRECT).toBe("/");
+      expect(POST_LOGIN_REDIRECT).toBe("/dashboard");
 
       const signInOrder = vi.mocked(signIn).mock.invocationCallOrder[0];
       const sessionOrder = vi.mocked(createSession).mock.invocationCallOrder[0];

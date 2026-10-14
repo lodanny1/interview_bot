@@ -25,4 +25,4 @@ export const LOGIN_ERROR_MESSAGES: Record<SignInFailureReason, string> = {
 // "/" is the current dashboard URL: app/(dashboard)/page.tsx, where the route
 // group adds no URL segment. The login acceptance criterion names /dashboard,
 // which does not exist yet; update this constant if the dashboard moves.
-export const POST_LOGIN_REDIRECT = "/";
+export const POST_LOGIN_REDIRECT = "/dashboard";

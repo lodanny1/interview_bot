@@ -8,7 +8,7 @@ import type { AppUser, UserTier } from "@/lib/auth/types";
 
 const tierOptions: UserTier[] = ["free", "standard", "premium"];
 
-export default function AdminUsersPage() {
+export default function AdminUsersClient() {
   const currentUser = getCurrentUser();
   const [users, setUsers] = useState<AppUser[]>(Object.values(mockUsers));
   const [message, setMessage] = useState("");

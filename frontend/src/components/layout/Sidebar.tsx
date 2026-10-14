@@ -12,6 +12,7 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 import { mockUser } from "@/lib/mock-data";
 
 
@@ -64,13 +65,13 @@ export function Sidebar() {
           <Link
             href="/admin/users"
             className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+              "flex items-center gap-4 px-4 py-3 rounded-lg text-base font-medium transition-colors",
               pathname.startsWith("/admin")
-                ? "bg-gray-800 text-white"
-                : "text-gray-600 hover:bg-gray-200"
+                ? "bg-hover text-link border-r-4 border-cta"
+                : "text-secondary hover:bg-hover",
             )}
           >
-            <Users className="w-4 h-4" />
+            <Users className="w-5 h-5" />
             Admin Users
           </Link>
         )}
@@ -86,6 +87,11 @@ export function Sidebar() {
           <Plus className="w-4 h-4" />
           New Practice Interview
         </Link>
+      </div>
+
+      {/* Log Out */}
+      <div className="px-4 pb-2">
+        <LogoutButton />
       </div>
 
       {/* User */}

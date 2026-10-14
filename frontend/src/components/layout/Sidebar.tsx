@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AccountMenu } from "@/components/layout/AccountMenu";
 import {
   Bot,
   LayoutDashboard,
@@ -24,7 +25,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex flex-col w-64 min-h-screen bg-card border-r border-line-subtle">
+    <aside className="flex h-screen w-64 shrink-0 flex-col bg-card border-r border-line-subtle">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 h-24 border-b border-line-subtle">
         <div className="w-10 h-10 bg-cta rounded-xl flex items-center justify-center">
@@ -34,7 +35,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-6 space-y-2">
+      <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-6">
         {navItems.map((item) => {
           const isActive =
             item.href === "/"
@@ -70,14 +71,13 @@ export function Sidebar() {
       </div>
 
       {/* User */}
-      <div className="flex items-center gap-3 px-6 py-5 border-t border-line-subtle">
-        <div className="w-10 h-10 bg-tinted text-link rounded-full flex items-center justify-center text-sm font-semibold">
-          {mockUser.name.charAt(0)}
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-primary">{mockUser.name}</p>
-          <p className="text-xs text-tertiary">{mockUser.plan}</p>
-        </div>
+      <div className="border-t border-gray-200 px-3 py-3 text-gray-800 cursor-pointer">
+        <AccountMenu
+          user={{ name: mockUser.name, plan: mockUser.plan }}
+          onSignOut={() => {
+            // TODO: call your sign-out
+          }}
+        />
       </div>
     </aside>
   );

@@ -9,9 +9,11 @@ import {
   Calendar,
   BarChart3,
   Plus,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mockUser } from "@/lib/mock-data";
+
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -22,6 +24,7 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const showAdminLink = false;
 
   return (
     <aside className="flex flex-col w-64 min-h-screen bg-card border-r border-line-subtle">
@@ -56,6 +59,22 @@ export function Sidebar() {
             </Link>
           );
         })}
+        
+        {showAdminLink && (
+          <Link
+            href="/admin/users"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+              pathname.startsWith("/admin")
+                ? "bg-gray-800 text-white"
+                : "text-gray-600 hover:bg-gray-200"
+            )}
+          >
+            <Users className="w-4 h-4" />
+            Admin Users
+          </Link>
+        )}
+
       </nav>
 
       {/* New Practice Interview Button */}

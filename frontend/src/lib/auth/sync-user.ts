@@ -4,7 +4,8 @@ export interface ApplicationUser {
   id: string;
   email: string;
   display_name: string | null;
-  approval_status: string;
+  role: string;
+  account_status: string;
   access_tier: string;
   cognito_sub: string;
   created_at: string;

@@ -31,5 +31,44 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
+      - name: Run tests
+        run: npm test
+
       - name: Build application
         run: npm run build
+
+  backend-checks:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate server syntax
+        run: node --check src/server.js
+
+      - name: Validate authentication code
+        run: node --check src/auth/verify-id-token.js
+
+      - name: Validate database code
+        run: node --check src/db/postgres.js
+
+      - name: Validate user repository
+        run: node --check src/users/user-repository.js
+
+      - name: Validate profile repository
+        run: node --check src/users/user-profile-repository.js

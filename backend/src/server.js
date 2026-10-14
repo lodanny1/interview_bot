@@ -24,6 +24,103 @@ app.get("/health", (req, res) => {
   });
 });
 
+app.patch("/me/profile", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader?.startsWith("Bearer ")) {
+      return res.status(401).json({
+        error: "Missing authentication token",
+      });
+    }
+
+    const idToken = authHeader.slice("Bearer ".length);
+
+    const payload = await verifyIdToken(idToken);
+
+    const user = await getOrCreateUser({
+      cognitoSub: payload.sub,
+      email: payload.email,
+      displayName: payload.name || payload.email,
+    });
+
+    if (user.account_status !== "ACTIVE") {
+      return res.status(403).json({
+        error: "Account is disabled",
+      });
+    }
+
+    const {
+      fullName,
+      role,
+    } = req.body;
+
+    if (
+      typeof fullName !== "string" ||
+      !fullName.trim()
+    ) {
+      return res.status(400).json({
+        error: "Full name is required",
+      });
+    }
+
+    if (typeof role !== "string") {
+      return res.status(400).json({
+        error: "Role must be a string",
+      });
+    }
+
+    const existingProfile =
+      await getUserProfile(user.id);
+
+    const pool = await createPool();
+
+    try {
+      await pool.query(
+        `
+        UPDATE public.users
+        SET display_name = $1
+        WHERE id = $2
+        `,
+        [fullName.trim(), user.id]
+      );
+    } finally {
+      await pool.end();
+    }
+
+    const profile = await upsertUserProfile({
+      userId: user.id,
+      targetRole: role.trim() || null,
+
+      targetCompany:
+        existingProfile?.target_company ?? null,
+
+      experienceLevel:
+        existingProfile?.experience_level ?? null,
+
+      focusAreas:
+        existingProfile?.focus_areas ?? null,
+
+      bio:
+        existingProfile?.bio ?? null,
+    });
+
+    return res.json({
+      user: {
+        ...user,
+        display_name: fullName.trim(),
+      },
+      profile,
+    });
+  } catch (error) {
+    console.error("PATCH /me/profile failed:", error);
+
+    return res.status(500).json({
+      error: "Unable to update profile",
+    });
+  }
+});
+
 app.get("/me", async (req, res) => {
   try {
     const authHeader = req.headers.authorization;

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { redirect } from "next/navigation";
 import { signIn, type SignInFailureReason } from "@/lib/auth/cognito";
 import { createSession } from "@/lib/auth/session-cookie";
+import { syncAuthenticatedUser } from "@/lib/auth/sync-user";
 import { LOGIN_VALIDATION_MESSAGES } from "@/lib/auth/login-validation";
 import {
   INITIAL_LOGIN_FORM_STATE,
@@ -10,8 +11,18 @@ import {
 } from "@/lib/auth/login-form-state";
 import { loginAction } from "@/app/login/actions";
 
-vi.mock("@/lib/auth/cognito", () => ({ signIn: vi.fn() }));
-vi.mock("@/lib/auth/session-cookie", () => ({ createSession: vi.fn() }));
+vi.mock("@/lib/auth/cognito", () => ({
+  signIn: vi.fn(),
+}));
+
+vi.mock("@/lib/auth/session-cookie", () => ({
+  createSession: vi.fn(),
+}));
+
+vi.mock("@/lib/auth/sync-user", () => ({
+  syncAuthenticatedUser: vi.fn(),
+}));
+
 // The real redirect() throws to abort rendering; mirror that.
 vi.mock("next/navigation", () => ({
   redirect: vi.fn(() => {
@@ -21,13 +32,30 @@ vi.mock("next/navigation", () => ({
 
 const EMAIL = "user@example.com";
 const PASSWORD = "correct horse battery staple";
-const TOKENS = { idToken: "id-token", expiresInSeconds: 3600 };
+
+const TOKENS = {
+  idToken: "id-token",
+  expiresInSeconds: 3600,
+};
+
+const APPLICATION_USER = {
+  id: "user-id",
+  email: EMAIL,
+  display_name: "Test User",
+  role: "USER",
+  account_status: "ACTIVE",
+  access_tier: "BASIC",
+  cognito_sub: "cognito-sub",
+  created_at: "2026-10-14T00:00:00.000Z",
+};
 
 function formData(values: Record<string, string>): FormData {
   const data = new FormData();
+
   for (const [key, value] of Object.entries(values)) {
     data.set(key, value);
   }
+
   return data;
 }
 
@@ -35,49 +63,101 @@ describe("loginAction", () => {
   beforeEach(() => {
     vi.mocked(signIn).mockReset();
     vi.mocked(createSession).mockReset();
+    vi.mocked(syncAuthenticatedUser).mockReset();
     vi.mocked(redirect).mockClear();
+
+    vi.mocked(syncAuthenticatedUser).mockResolvedValue(
+      APPLICATION_USER
+    );
   });
 
   describe("successful sign in", () => {
-    it("signs in, creates the session, then redirects to the dashboard", async () => {
-      vi.mocked(signIn).mockResolvedValue({ ok: true, tokens: TOKENS });
+    it("signs in, syncs the user, creates the session, then redirects to the dashboard", async () => {
+      vi.mocked(signIn).mockResolvedValue({
+        ok: true,
+        tokens: TOKENS,
+      });
 
       await expect(
         loginAction(
           INITIAL_LOGIN_FORM_STATE,
-          formData({ email: EMAIL, password: PASSWORD })
+          formData({
+            email: EMAIL,
+            password: PASSWORD,
+          })
         )
       ).rejects.toThrow("NEXT_REDIRECT");
 
-      expect(signIn).toHaveBeenCalledWith(EMAIL, PASSWORD);
-      expect(createSession).toHaveBeenCalledWith(TOKENS);
-      expect(redirect).toHaveBeenCalledWith(POST_LOGIN_REDIRECT);
+      expect(signIn).toHaveBeenCalledWith(
+        EMAIL,
+        PASSWORD
+      );
+
+      expect(syncAuthenticatedUser).toHaveBeenCalledWith(
+        TOKENS.idToken
+      );
+
+      expect(createSession).toHaveBeenCalledWith(
+        TOKENS
+      );
+
+      expect(redirect).toHaveBeenCalledWith(
+        POST_LOGIN_REDIRECT
+      );
+
       expect(POST_LOGIN_REDIRECT).toBe("/dashboard");
 
-      const signInOrder = vi.mocked(signIn).mock.invocationCallOrder[0];
-      const sessionOrder = vi.mocked(createSession).mock.invocationCallOrder[0];
-      const redirectOrder = vi.mocked(redirect).mock.invocationCallOrder[0];
-      expect(signInOrder).toBeLessThan(sessionOrder);
+      const signInOrder =
+        vi.mocked(signIn).mock.invocationCallOrder[0];
+
+      const syncOrder =
+        vi.mocked(syncAuthenticatedUser).mock
+          .invocationCallOrder[0];
+
+      const sessionOrder =
+        vi.mocked(createSession).mock.invocationCallOrder[0];
+
+      const redirectOrder =
+        vi.mocked(redirect).mock.invocationCallOrder[0];
+
+      expect(signInOrder).toBeLessThan(syncOrder);
+      expect(syncOrder).toBeLessThan(sessionOrder);
       expect(sessionOrder).toBeLessThan(redirectOrder);
     });
 
     it("does not redirect if the session cannot be created", async () => {
-      vi.mocked(signIn).mockResolvedValue({ ok: true, tokens: TOKENS });
-      vi.mocked(createSession).mockRejectedValue(new Error("cookie failure"));
+      vi.mocked(signIn).mockResolvedValue({
+        ok: true,
+        tokens: TOKENS,
+      });
+
+      vi.mocked(createSession).mockRejectedValue(
+        new Error("cookie failure")
+      );
 
       await expect(
         loginAction(
           INITIAL_LOGIN_FORM_STATE,
-          formData({ email: EMAIL, password: PASSWORD })
+          formData({
+            email: EMAIL,
+            password: PASSWORD,
+          })
         )
-      ).resolves.toEqual({ formError: LOGIN_ERROR_MESSAGES.service_unavailable });
+      ).resolves.toEqual({
+        formError:
+          LOGIN_ERROR_MESSAGES.service_unavailable,
+      });
+
       expect(redirect).not.toHaveBeenCalled();
     });
   });
 
   describe("authentication failures", () => {
     it.each<[SignInFailureReason, string]>([
-      ["invalid_credentials", "Incorrect email or password."],
+      [
+        "invalid_credentials",
+        "Incorrect email or password.",
+      ],
       [
         "account_action_required",
         "This account cannot sign in yet. Please contact support or complete the required account action.",
@@ -89,15 +169,25 @@ describe("loginAction", () => {
     ])(
       "returns the %s message without creating a session",
       async (reason, message) => {
-        vi.mocked(signIn).mockResolvedValue({ ok: false, reason });
+        vi.mocked(signIn).mockResolvedValue({
+          ok: false,
+          reason,
+        });
 
         const state = await loginAction(
           INITIAL_LOGIN_FORM_STATE,
-          formData({ email: EMAIL, password: PASSWORD })
+          formData({
+            email: EMAIL,
+            password: PASSWORD,
+          })
         );
 
-        expect(state).toEqual({ formError: message });
+        expect(state).toEqual({
+          formError: message,
+        });
+
         expect(createSession).not.toHaveBeenCalled();
+        expect(syncAuthenticatedUser).not.toHaveBeenCalled();
         expect(redirect).not.toHaveBeenCalled();
       }
     );
@@ -105,28 +195,42 @@ describe("loginAction", () => {
 
   describe("required fields", () => {
     it("returns field errors without calling Cognito", async () => {
-      const state = await loginAction(INITIAL_LOGIN_FORM_STATE, new FormData());
+      const state = await loginAction(
+        INITIAL_LOGIN_FORM_STATE,
+        new FormData()
+      );
 
       expect(state).toEqual({
         fieldErrors: {
-          email: LOGIN_VALIDATION_MESSAGES.emailRequired,
-          password: LOGIN_VALIDATION_MESSAGES.passwordRequired,
+          email:
+            LOGIN_VALIDATION_MESSAGES.emailRequired,
+          password:
+            LOGIN_VALIDATION_MESSAGES.passwordRequired,
         },
       });
+
       expect(signIn).not.toHaveBeenCalled();
       expect(createSession).not.toHaveBeenCalled();
+      expect(syncAuthenticatedUser).not.toHaveBeenCalled();
       expect(redirect).not.toHaveBeenCalled();
     });
 
     it("rejects a missing password", async () => {
       const state = await loginAction(
         INITIAL_LOGIN_FORM_STATE,
-        formData({ email: EMAIL, password: "" })
+        formData({
+          email: EMAIL,
+          password: "",
+        })
       );
 
       expect(state).toEqual({
-        fieldErrors: { password: LOGIN_VALIDATION_MESSAGES.passwordRequired },
+        fieldErrors: {
+          password:
+            LOGIN_VALIDATION_MESSAGES.passwordRequired,
+        },
       });
+
       expect(signIn).not.toHaveBeenCalled();
     });
   });
@@ -137,33 +241,60 @@ describe("loginAction", () => {
       [
         "authentication failure",
         () =>
-          vi
-            .mocked(signIn)
-            .mockResolvedValue({ ok: false, reason: "invalid_credentials" }),
+          vi.mocked(signIn).mockResolvedValue({
+            ok: false,
+            reason: "invalid_credentials",
+          }),
       ],
       [
         "service failure",
         () =>
-          vi
-            .mocked(signIn)
-            .mockResolvedValue({ ok: false, reason: "service_unavailable" }),
+          vi.mocked(signIn).mockResolvedValue({
+            ok: false,
+            reason: "service_unavailable",
+          }),
       ],
-    ])("never returns or logs the password (%s)", async (label, arrange) => {
-      arrange();
-      const logSpies = (["log", "info", "warn", "error"] as const).map((method) =>
-        vi.spyOn(console, method).mockImplementation(() => {})
-      );
-      const values =
-        label === "validation error"
-          ? { email: "", password: PASSWORD }
-          : { email: EMAIL, password: PASSWORD };
+    ])(
+      "never returns or logs the password (%s)",
+      async (label, arrange) => {
+        arrange();
 
-      const state = await loginAction(INITIAL_LOGIN_FORM_STATE, formData(values));
+        const logSpies = (
+          ["log", "info", "warn", "error"] as const
+        ).map((method) =>
+          vi
+            .spyOn(console, method)
+            .mockImplementation(() => {})
+        );
 
-      expect(JSON.stringify(state)).not.toContain(PASSWORD);
-      expect(state).not.toHaveProperty("password");
-      const logged = logSpies.flatMap((spy) => spy.mock.calls.flat()).join(" ");
-      expect(logged).not.toContain(PASSWORD);
-    });
+        const values =
+          label === "validation error"
+            ? {
+                email: "",
+                password: PASSWORD,
+              }
+            : {
+                email: EMAIL,
+                password: PASSWORD,
+              };
+
+        const state = await loginAction(
+          INITIAL_LOGIN_FORM_STATE,
+          formData(values)
+        );
+
+        expect(JSON.stringify(state)).not.toContain(
+          PASSWORD
+        );
+
+        expect(state).not.toHaveProperty("password");
+
+        const logged = logSpies
+          .flatMap((spy) => spy.mock.calls.flat())
+          .join(" ");
+
+        expect(logged).not.toContain(PASSWORD);
+      }
+    );
   });
 });

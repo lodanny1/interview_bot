@@ -1,5 +1,6 @@
 "use server";
 
+import { syncAuthenticatedUser } from "@/lib/auth/sync-user";
 import { redirect } from "next/navigation";
 import { signIn } from "@/lib/auth/cognito";
 import { createSession } from "@/lib/auth/session-cookie";
@@ -29,9 +30,11 @@ export async function loginAction(
   }
 
   try {
-    await createSession(result.tokens);
-  } catch {
-    return { formError: LOGIN_ERROR_MESSAGES.service_unavailable };
+  await syncAuthenticatedUser(result.tokens.idToken);
+  await createSession(result.tokens);
+  } catch (error) {
+  console.error("Login integration failed:", error);
+  return { formError: LOGIN_ERROR_MESSAGES.service_unavailable };
   }
 
   // redirect() throws to navigate, so it must stay outside the try/catch.

@@ -118,7 +118,7 @@ export function SignUpForm({ action }: SignUpFormProps) {
     }
 
     setClientCodeError(undefined);
-    submit({ intent: "confirm", email: codeEmail, password, code: validation.code });
+    submit({ intent: "confirm", email: codeEmail, password, targetRole, code: validation.code });
   }
 
   function handleResend() {

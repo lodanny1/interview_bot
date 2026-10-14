@@ -1,9 +1,13 @@
 require("dotenv").config();
 
 const express = require("express");
+
 const { verifyIdToken } = require("./auth/verify-id-token");
 const { getOrCreateUser } = require("./users/user-repository");
-const { upsertUserProfile } = require("./users/user-profile-repository");
+const {
+  getUserProfile,
+  upsertUserProfile,
+} = require("./users/user-profile-repository");
 
 const app = express();
 app.disable("x-powered-by");
@@ -17,6 +21,47 @@ app.get("/health", (req, res) => {
     status: "ok",
     service: "interview-bot-backend",
   });
+});
+
+app.get("/me", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        error: "Missing or invalid Authorization header",
+      });
+    }
+
+    const token = authHeader.substring("Bearer ".length);
+
+    const payload = await verifyIdToken(token);
+
+    const user = await getOrCreateUser({
+      cognitoSub: payload.sub,
+      email: payload.email,
+      displayName: payload.name || payload.email,
+    });
+
+    if (user.account_status !== "ACTIVE") {
+      return res.status(403).json({
+        error: "Account is not active",
+      });
+    }
+
+    const profile = await getUserProfile(user.id);
+
+    return res.status(200).json({
+      user,
+      profile,
+    });
+  } catch (error) {
+    console.error("GET /me failed:", error);
+
+    return res.status(401).json({
+      error: "Authentication failed",
+    });
+  }
 });
 
 app.post("/auth/sync-user", async (req, res) => {
@@ -38,12 +83,17 @@ app.post("/auth/sync-user", async (req, res) => {
       email: payload.email,
       displayName: payload.name || payload.email,
     });
-    let profile = null;
+
+    let profile = await getUserProfile(user.id);
 
     if (req.body?.targetRole) {
       profile = await upsertUserProfile({
         userId: user.id,
         targetRole: req.body.targetRole,
+        targetCompany: profile?.target_company ?? null,
+        experienceLevel: profile?.experience_level ?? null,
+        focusAreas: profile?.focus_areas ?? null,
+        bio: profile?.bio ?? null,
       });
     }
 

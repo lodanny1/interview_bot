@@ -24,7 +24,8 @@ async function getOrCreateUser({
           id,
           email,
           display_name,
-          approval_status,
+          role,
+          account_status,
           access_tier,
           cognito_sub,
           created_at
@@ -56,7 +57,8 @@ async function getOrCreateUser({
           id,
           email,
           display_name,
-          approval_status,
+          role,
+          account_status,
           access_tier,
           cognito_sub,
           created_at

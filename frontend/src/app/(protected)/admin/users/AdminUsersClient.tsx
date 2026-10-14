@@ -1,120 +1,291 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { canManageUsers } from "@/lib/auth/access";
-import { getCurrentUser } from "@/lib/auth/session";
-import { mockUsers } from "@/lib/auth/mock-users";
-import type { AppUser, UserTier } from "@/lib/auth/types";
 
-const tierOptions: UserTier[] = ["free", "standard", "premium"];
+export type AdminUser = {
+  id: string;
+  email: string;
+  display_name: string | null;
+  role: string;
+  account_status: string;
+  access_tier: string;
+  created_at: string;
+};
 
-export default function AdminUsersClient() {
-  const currentUser = getCurrentUser();
-  const [users, setUsers] = useState<AppUser[]>(Object.values(mockUsers));
+type Props = {
+  users: AdminUser[];
+  currentAdminId: string;
+};
+
+export default function AdminUsersClient({
+  users,
+  currentAdminId,
+}: Props) {
+  const router = useRouter();
+
   const [message, setMessage] = useState("");
+  const [loadingUserId, setLoadingUserId] = useState<string | null>(
+    null
+  );
 
-  if (!canManageUsers(currentUser)) {
-    return (
-      <main className="p-8">
-        <h1 className="text-2xl font-semibold text-gray-900">
-          Admin access required
-        </h1>
-        <p className="mt-2 text-gray-600">
-          Only approved administrators can manage user accounts.
-        </p>
-      </main>
-    );
+  async function updateStatus(user: AdminUser) {
+    if (user.id === currentAdminId) {
+      return;
+    }
+
+    const nextStatus =
+      user.account_status === "ACTIVE"
+        ? "DISABLED"
+        : "ACTIVE";
+
+    setLoadingUserId(user.id);
+    setMessage("");
+
+    try {
+      const response = await fetch(
+        `/api/admin/users/${user.id}/status`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            status: nextStatus,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to update account status");
+      }
+
+      setMessage(
+        nextStatus === "ACTIVE"
+          ? "User account reactivated."
+          : "User account disabled."
+      );
+
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      setMessage("Unable to update account status.");
+    } finally {
+      setLoadingUserId(null);
+    }
   }
 
-  function updateUser(
+  async function updateTier(
     userId: string,
-    changes: Partial<Pick<AppUser, "status" | "tier">>
+    tier: string
   ) {
-    setUsers((currentUsers) =>
-      currentUsers.map((user) =>
-        user.id === userId ? { ...user, ...changes } : user
-      )
-    );
+    setLoadingUserId(userId);
+    setMessage("");
 
-    setMessage("User access was updated.");
+    try {
+      const response = await fetch(
+        `/api/admin/users/${userId}/tier`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            tier,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to update access tier");
+      }
+
+      setMessage("User access tier updated.");
+
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      setMessage("Unable to update access tier.");
+    } finally {
+      setLoadingUserId(null);
+    }
   }
 
   return (
-    <main className="p-8">
-      <h1 className="text-2xl font-semibold text-gray-900">
-        User Approval and Access Tiers
-      </h1>
-      <p className="mt-2 text-gray-600">
-        Review accounts and manage their application access.
-      </p>
-
+    <>
       {message && (
-        <p className="mt-4 rounded-md bg-green-50 p-3 text-sm text-green-700">
+        <div className="mb-6 rounded-lg border border-line-subtle bg-card px-4 py-3 text-sm text-primary">
           {message}
-        </p>
+        </div>
       )}
 
-      <div className="mt-6 space-y-4">
-        {users.map((user) => (
-          <section
-            key={user.id}
-            className="rounded-lg border border-gray-200 bg-white p-5"
-          >
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="font-medium text-gray-900">{user.name}</h2>
-                <p className="text-sm text-gray-500">{user.email}</p>
-                <p className="mt-1 text-sm text-gray-600">
-                  Status: {user.status} · Tier: {user.tier} · Role: {user.role}
-                </p>
-              </div>
+      <section className="bg-card rounded-2xl border border-line-subtle shadow-sm overflow-hidden">
+        <div className="px-6 py-5 border-b border-line-subtle">
+          <h2 className="text-xl font-medium text-primary">
+            Users
+          </h2>
+        </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  value={user.tier}
-                  onChange={(event) =>
-                    updateUser(user.id, {
-                      tier: event.target.value as UserTier,
-                    })
-                  }
-                  className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-                  aria-label={`Access tier for ${user.name}`}
-                >
-                  {tierOptions.map((tier) => (
-                    <option key={tier} value={tier}>
-                      {tier}
-                    </option>
-                  ))}
-                </select>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="border-b border-line-subtle bg-hover/30">
+              <tr>
+                <TableHeading>Name</TableHeading>
+                <TableHeading>Email</TableHeading>
+                <TableHeading>Role</TableHeading>
+                <TableHeading>Tier</TableHeading>
+                <TableHeading>Status</TableHeading>
+                <TableHeading>Created</TableHeading>
+                <TableHeading>Actions</TableHeading>
+              </tr>
+            </thead>
 
-                {user.status === "pending" && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateUser(user.id, { status: "approved" })
-                    }
-                    className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white hover:bg-gray-700"
+            <tbody className="divide-y divide-line-subtle">
+              {users.map((user) => {
+                const isCurrentAdmin =
+                  user.id === currentAdminId;
+
+                const loading =
+                  loadingUserId === user.id;
+
+                return (
+                  <tr
+                    key={user.id}
+                    className="hover:bg-hover/30 transition-colors"
                   >
-                    Approve
-                  </button>
-                )}
+                    <TableCell>
+                      {user.display_name || "—"}
+                    </TableCell>
 
-                {user.status === "approved" && user.role !== "admin" && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateUser(user.id, { status: "rejected" })
-                    }
-                    className="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                  >
-                    Restrict
-                  </button>
-                )}
-              </div>
-            </div>
-          </section>
-        ))}
-      </div>
-    </main>
+                    <TableCell>
+                      {user.email}
+                    </TableCell>
+
+                    <TableCell>
+                      <RoleBadge role={user.role} />
+                    </TableCell>
+
+                    <TableCell>
+                      <select
+                        value={user.access_tier}
+                        disabled={loading}
+                        onChange={(event) =>
+                          updateTier(
+                            user.id,
+                            event.target.value
+                          )
+                        }
+                        className="rounded-lg border border-line bg-card px-3 py-2 text-sm text-primary disabled:opacity-50"
+                      >
+                        <option value="BASIC">
+                          BASIC
+                        </option>
+                        <option value="PREMIUM">
+                          PREMIUM
+                        </option>
+                      </select>
+                    </TableCell>
+
+                    <TableCell>
+                      <StatusBadge
+                        status={user.account_status}
+                      />
+                    </TableCell>
+
+                    <TableCell>
+                      {new Date(
+                        user.created_at
+                      ).toLocaleDateString()}
+                    </TableCell>
+
+                    <TableCell>
+                      <button
+                        type="button"
+                        disabled={
+                          loading || isCurrentAdmin
+                        }
+                        onClick={() =>
+                          updateStatus(user)
+                        }
+                        className="rounded-lg border border-line px-3 py-2 text-sm font-medium text-primary hover:bg-hover disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {loading
+                          ? "Updating..."
+                          : isCurrentAdmin
+                          ? "Current Admin"
+                          : user.account_status ===
+                            "ACTIVE"
+                          ? "Disable"
+                          : "Reactivate"}
+                      </button>
+                    </TableCell>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </>
+  );
+}
+
+function TableHeading({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wider text-tertiary">
+      {children}
+    </th>
+  );
+}
+
+function TableCell({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <td className="px-6 py-4 text-sm text-primary whitespace-nowrap">
+      {children}
+    </td>
+  );
+}
+
+function RoleBadge({
+  role,
+}: {
+  role: string;
+}) {
+  return (
+    <span
+      className={`inline-flex px-2.5 py-1 rounded-full font-mono text-xs ${
+        role === "ADMIN"
+          ? "bg-tinted text-cta"
+          : "bg-hover text-secondary"
+      }`}
+    >
+      {role}
+    </span>
+  );
+}
+
+function StatusBadge({
+  status,
+}: {
+  status: string;
+}) {
+  return (
+    <span
+      className={`inline-flex px-2.5 py-1 rounded-full font-mono text-xs ${
+        status === "ACTIVE"
+          ? "bg-success-bg text-success-text"
+          : "bg-info-bg text-info-text"
+      }`}
+    >
+      {status}
+    </span>
   );
 }

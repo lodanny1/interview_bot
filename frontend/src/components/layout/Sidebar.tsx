@@ -11,21 +11,60 @@ import {
   Plus,
   Users,
 } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "@/components/auth/LogoutButton";
-import { mockUser } from "@/lib/mock-data";
 
+type SidebarUser = {
+  display_name: string | null;
+  email: string;
+  role: string;
+  access_tier: string;
+};
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/interviews", label: "Interviews", icon: MessageSquare },
-  { href: "/calendar", label: "Calendar", icon: Calendar },
-  { href: "/progress", label: "Progress", icon: BarChart3 },
+  {
+    href: "/dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    href: "/interviews",
+    label: "Interviews",
+    icon: MessageSquare,
+  },
+  {
+    href: "/calendar",
+    label: "Calendar",
+    icon: Calendar,
+  },
+  {
+    href: "/progress",
+    label: "Progress",
+    icon: BarChart3,
+  },
 ];
 
-export function Sidebar() {
+export function Sidebar({
+  user,
+}: {
+  user: SidebarUser;
+}) {
   const pathname = usePathname();
-  const showAdminLink = false;
+
+  const showAdminLink = user.role === "ADMIN";
+
+  const displayName =
+    user.display_name?.trim() ||
+    user.email.split("@")[0];
+
+  const initial =
+    displayName.charAt(0).toUpperCase();
+
+  const plan =
+    user.access_tier === "PREMIUM"
+      ? "Premium plan"
+      : "Basic plan";
 
   return (
     <aside className="flex flex-col w-64 min-h-screen bg-card border-r border-line-subtle">
@@ -34,16 +73,20 @@ export function Sidebar() {
         <div className="w-10 h-10 bg-cta rounded-xl flex items-center justify-center">
           <Bot className="w-6 h-6 text-white" />
         </div>
-        <span className="text-xl font-semibold text-primary">InterviewBot</span>
+
+        <span className="text-xl font-semibold text-primary">
+          InterviewBot
+        </span>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-6 space-y-2">
         {navItems.map((item) => {
           const isActive =
-            item.href === "/"
-              ? pathname === "/"
+            item.href === "/dashboard"
+              ? pathname === "/dashboard"
               : pathname.startsWith(item.href);
+
           return (
             <Link
               key={item.href}
@@ -52,7 +95,7 @@ export function Sidebar() {
                 "flex items-center gap-4 px-4 py-3 rounded-lg text-base font-medium transition-colors",
                 isActive
                   ? "bg-hover text-link border-r-4 border-cta"
-                  : "text-secondary hover:bg-hover",
+                  : "text-secondary hover:bg-hover"
               )}
             >
               <item.icon className="w-5 h-5" />
@@ -60,7 +103,7 @@ export function Sidebar() {
             </Link>
           );
         })}
-        
+
         {showAdminLink && (
           <Link
             href="/admin/users"
@@ -68,17 +111,16 @@ export function Sidebar() {
               "flex items-center gap-4 px-4 py-3 rounded-lg text-base font-medium transition-colors",
               pathname.startsWith("/admin")
                 ? "bg-hover text-link border-r-4 border-cta"
-                : "text-secondary hover:bg-hover",
+                : "text-secondary hover:bg-hover"
             )}
           >
             <Users className="w-5 h-5" />
             Admin Users
           </Link>
         )}
-
       </nav>
 
-      {/* New Practice Interview Button */}
+      {/* New Practice Interview */}
       <div className="px-4 pb-6">
         <Link
           href="/interview/setup"
@@ -89,7 +131,7 @@ export function Sidebar() {
         </Link>
       </div>
 
-      {/* Log Out */}
+      {/* Logout */}
       <div className="px-4 pb-2">
         <LogoutButton />
       </div>
@@ -97,11 +139,19 @@ export function Sidebar() {
       {/* User */}
       <div className="flex items-center gap-3 px-6 py-5 border-t border-line-subtle">
         <div className="w-10 h-10 bg-tinted text-link rounded-full flex items-center justify-center text-sm font-semibold">
-          {mockUser.name.charAt(0)}
+          {initial}
         </div>
-        <div>
-          <p className="text-sm font-semibold text-primary">{mockUser.name}</p>
-          <p className="text-xs text-tertiary">{mockUser.plan}</p>
+
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-primary truncate">
+            {displayName}
+          </p>
+
+          <p className="text-xs text-tertiary">
+            {user.role === "ADMIN"
+              ? `Admin · ${plan}`
+              : plan}
+          </p>
         </div>
       </div>
     </aside>

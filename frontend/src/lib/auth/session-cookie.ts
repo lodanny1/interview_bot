@@ -13,7 +13,7 @@ export interface SessionClaims {
   name?: string;
 }
 
-// Defined in a dependency-free module so proxy.ts can share it.
+// Defined in a dependency-free module so code without server-only access can share it.
 export { SESSION_COOKIE_NAME } from "./session-cookie-name";
 import { SESSION_COOKIE_NAME } from "./session-cookie-name";
 

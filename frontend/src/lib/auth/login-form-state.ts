@@ -22,7 +22,5 @@ export const LOGIN_ERROR_MESSAGES: Record<SignInFailureReason, string> = {
   service_unavailable: "We couldn't complete sign in right now. Please try again.",
 };
 
-// "/" is the current dashboard URL: app/(dashboard)/page.tsx, where the route
-// group adds no URL segment. The login acceptance criterion names /dashboard,
-// which does not exist yet; update this constant if the dashboard moves.
+// The dashboard lives at app/(protected)/dashboard/page.tsx.
 export const POST_LOGIN_REDIRECT = "/dashboard";

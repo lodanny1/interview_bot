@@ -1,5 +1,6 @@
 "use server";
 
+import { syncAuthenticatedUser } from "@/lib/auth/sync-user";
 import { redirect } from "next/navigation";
 import { signIn } from "@/lib/auth/cognito";
 import {
@@ -49,7 +50,7 @@ async function createStep(formData: FormData): Promise<SignUpFormState> {
 
   // targetRole is validated but not sent to Cognito: it belongs in the user's
   // profile, which gets saved once the application database (#41) exists.
-  const { name, email, password } = validation.data;
+  const { name, email, password, targetRole } = validation.data;
   const result = await signUp(name, email, password);
 
   if (!result.ok) {
@@ -73,12 +74,13 @@ async function createStep(formData: FormData): Promise<SignUpFormState> {
     return { step: "confirm", email, notice: SIGNUP_NOTICES.codeSent };
   }
 
-  return signInAndRedirect(email, password, "details");
+  return signInAndRedirect(email, password, "details", targetRole);
 }
 
 async function confirmStep(formData: FormData): Promise<SignUpFormState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+  const targetRole = String(formData.get("targetRole") ?? "").trim();
 
   const code = validateConfirmationCode(formData.get("code"));
   if (!code.ok) {
@@ -96,7 +98,7 @@ async function confirmStep(formData: FormData): Promise<SignUpFormState> {
     return { step: "confirm", email, formError: SIGNUP_ERROR_MESSAGES.confirm_unavailable };
   }
 
-  return signInAndRedirect(email, password, "confirm");
+  return signInAndRedirect(email, password, "confirm", targetRole);
 }
 
 async function resendStep(formData: FormData): Promise<SignUpFormState> {
@@ -120,7 +122,8 @@ async function resendStep(formData: FormData): Promise<SignUpFormState> {
 async function signInAndRedirect(
   email: string,
   password: string,
-  step: SignUpStep
+  step: SignUpStep,
+  targetRole?: string
 ): Promise<SignUpFormState> {
   const result = await signIn(email, password);
   if (!result.ok) {
@@ -133,6 +136,7 @@ async function signInAndRedirect(
   }
 
   try {
+    await syncAuthenticatedUser(result.tokens.idToken, targetRole);
     await createSession(result.tokens);
   } catch {
     return {

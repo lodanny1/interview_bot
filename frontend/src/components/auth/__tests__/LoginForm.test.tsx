@@ -20,9 +20,9 @@ function setup(action: LoginAction) {
   render(<LoginForm action={action} />);
   return {
     user,
-    email: screen.getByLabelText("Email") as HTMLInputElement,
+    email: screen.getByLabelText(/email/i) as HTMLInputElement,
     password: screen.getByLabelText("Password") as HTMLInputElement,
-    submit: () => screen.getByRole("button") as HTMLButtonElement,
+    submit: () => document.querySelector('button[type="submit"]') as HTMLButtonElement,
   };
 }
 

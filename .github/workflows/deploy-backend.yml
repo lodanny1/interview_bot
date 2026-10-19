@@ -40,3 +40,11 @@ jobs:
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+      - name: Deploy new image to ECS
+        run: |
+          aws ecs update-service \
+            --cluster interview-bot-cluster \
+            --service interview-bot-backend-service \
+            --force-new-deployment \
+            --region us-west-2

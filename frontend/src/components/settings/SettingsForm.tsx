@@ -19,73 +19,22 @@ interface Props {
   plan: Plan;
 }
 
-export function SettingsForm({
-  initialValues,
-  plan,
-}: Props) {
-  const [saved, setSaved] =
-    useState<SettingsValues>(initialValues);
+export function SettingsForm({ initialValues, plan }: Props) {
+  const [saved, setSaved] = useState<SettingsValues>(initialValues);
+  const [values, setValues] = useState<SettingsValues>(initialValues);
 
-  const [values, setValues] =
-    useState<SettingsValues>(initialValues);
+  const onChange: SettingChangeHandler = (key, value) =>
+    setValues((prev) => ({ ...prev, [key]: value }));
 
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const dirty = JSON.stringify(values) !== JSON.stringify(saved);
 
-  const onChange: SettingChangeHandler = (key, value) => {
-    setValues((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-
-    setMessage(null);
-  };
-
-  const dirty =
-    JSON.stringify(values) !== JSON.stringify(saved);
-
-  async function handleSave() {
-    setSaving(true);
-    setMessage(null);
-
-    try {
-      const response = await fetch("/api/settings/profile", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fullName: values.fullName,
-          role: values.role,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.error || "Unable to save settings"
-        );
-      }
-
-      setSaved(values);
-      setMessage("Settings saved.");
-    } catch (error) {
-      console.error("Failed to save settings:", error);
-
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to save settings"
-      );
-    } finally {
-      setSaving(false);
-    }
+  function handleSave() {
+    // TODO: persist `values` to your API.
+    setSaved(values);
   }
 
   function handleDiscard() {
     setValues(saved);
-    setMessage(null);
   }
 
   return (
@@ -95,58 +44,28 @@ export function SettingsForm({
           <h1 className="text-3xl font-bold tracking-tight text-primary">
             Settings
           </h1>
-
           <p className="text-sm text-secondary">
             Manage your profile, sync calendar, and notification preferences.
           </p>
         </div>
-
         <div className="flex items-center gap-2">
-          <Button
-            variant="soft"
-            onClick={handleDiscard}
-            disabled={!dirty || saving}
-          >
+          <Button variant="soft" onClick={handleDiscard} disabled={!dirty}>
             Discard
           </Button>
-
-          <Button
-            onClick={handleSave}
-            disabled={!dirty || saving}
-          >
+          <Button onClick={handleSave} disabled={!dirty}>
             <Check className="size-4" aria-hidden />
-
-            {saving ? "Saving..." : "Save Changes"}
+            Save Changes
           </Button>
         </div>
       </div>
 
-      {message && (
-        <p className="text-sm text-secondary">
-          {message}
-        </p>
-      )}
-
-      <ProfileSection
-        values={values}
-        onChange={onChange}
-      />
-
-      <CalendarSection
-        values={values}
-        onChange={onChange}
-      />
-
-      <NotificationsSection
-        values={values}
-        onChange={onChange}
-      />
-
+      <ProfileSection values={values} onChange={onChange} />
+      <CalendarSection values={values} onChange={onChange} />
+      <NotificationsSection values={values} onChange={onChange} />
       <SubscriptionSection plan={plan} />
-
       <DangerSection
         onDeleteConfirmed={() => {
-          // Account deletion can be implemented later.
+          // TODO: call your delete-account endpoint.
         }}
       />
     </div>

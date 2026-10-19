@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AccountMenu } from "@/components/layout/AccountMenu";
 import {
   Bot,
   LayoutDashboard,
@@ -9,84 +10,37 @@ import {
   Calendar,
   BarChart3,
   Plus,
-  Users,
 } from "lucide-react";
-
 import { cn } from "@/lib/utils";
-import { LogoutButton } from "@/components/auth/LogoutButton";
-
-type SidebarUser = {
-  display_name: string | null;
-  email: string;
-  role: string;
-  access_tier: string;
-};
+import { mockUser } from "@/lib/mock-data";
 
 const navItems = [
-  {
-    href: "/dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    href: "/interviews",
-    label: "Interviews",
-    icon: MessageSquare,
-  },
-  {
-    href: "/calendar",
-    label: "Calendar",
-    icon: Calendar,
-  },
-  {
-    href: "/progress",
-    label: "Progress",
-    icon: BarChart3,
-  },
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/interviews", label: "Interviews", icon: MessageSquare },
+  { href: "/calendar", label: "Calendar", icon: Calendar },
+  { href: "/progress", label: "Progress", icon: BarChart3 },
 ];
 
-export function Sidebar({
-  user,
-}: {
-  user: SidebarUser;
-}) {
+export function Sidebar() {
   const pathname = usePathname();
 
-  const showAdminLink = user.role === "ADMIN";
-
-  const displayName =
-    user.display_name?.trim() ||
-    user.email.split("@")[0];
-
-  const initial =
-    displayName.charAt(0).toUpperCase();
-
-  const plan =
-    user.access_tier === "PREMIUM"
-      ? "Premium plan"
-      : "Basic plan";
-
   return (
-    <aside className="flex flex-col w-64 min-h-screen bg-card border-r border-line-subtle">
+    <aside className="flex h-screen w-64 shrink-0 flex-col bg-card border-r border-line-subtle">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 h-24 border-b border-line-subtle">
         <div className="w-10 h-10 bg-cta rounded-xl flex items-center justify-center">
           <Bot className="w-6 h-6 text-white" />
         </div>
-
-        <span className="text-xl font-semibold text-primary">
-          InterviewBot
-        </span>
+        <span className="text-xl font-semibold text-primary">InterviewBot</span>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-6 space-y-2">
+      <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-6">
         {navItems.map((item) => {
           const isActive =
-            item.href === "/dashboard"
-              ? pathname === "/dashboard"
+            item.href === "/"
+              ? pathname === "/"
               : pathname.startsWith(item.href);
-
           return (
             <Link
               key={item.href}
@@ -95,7 +49,7 @@ export function Sidebar({
                 "flex items-center gap-4 px-4 py-3 rounded-lg text-base font-medium transition-colors",
                 isActive
                   ? "bg-hover text-link border-r-4 border-cta"
-                  : "text-secondary hover:bg-hover"
+                  : "text-secondary hover:bg-hover",
               )}
             >
               <item.icon className="w-5 h-5" />
@@ -103,24 +57,9 @@ export function Sidebar({
             </Link>
           );
         })}
-
-        {showAdminLink && (
-          <Link
-            href="/admin/users"
-            className={cn(
-              "flex items-center gap-4 px-4 py-3 rounded-lg text-base font-medium transition-colors",
-              pathname.startsWith("/admin")
-                ? "bg-hover text-link border-r-4 border-cta"
-                : "text-secondary hover:bg-hover"
-            )}
-          >
-            <Users className="w-5 h-5" />
-            Admin Users
-          </Link>
-        )}
       </nav>
 
-      {/* New Practice Interview */}
+      {/* New Practice Interview Button */}
       <div className="px-4 pb-6">
         <Link
           href="/interview/setup"
@@ -131,28 +70,14 @@ export function Sidebar({
         </Link>
       </div>
 
-      {/* Logout */}
-      <div className="px-4 pb-2">
-        <LogoutButton />
-      </div>
-
       {/* User */}
-      <div className="flex items-center gap-3 px-6 py-5 border-t border-line-subtle">
-        <div className="w-10 h-10 bg-tinted text-link rounded-full flex items-center justify-center text-sm font-semibold">
-          {initial}
-        </div>
-
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-primary truncate">
-            {displayName}
-          </p>
-
-          <p className="text-xs text-tertiary">
-            {user.role === "ADMIN"
-              ? `Admin · ${plan}`
-              : plan}
-          </p>
-        </div>
+      <div className="border-t border-gray-200 px-3 py-3 text-gray-800 cursor-pointer">
+        <AccountMenu
+          user={{ name: mockUser.name, plan: mockUser.plan }}
+          onSignOut={() => {
+            // TODO: call your sign-out
+          }}
+        />
       </div>
     </aside>
   );

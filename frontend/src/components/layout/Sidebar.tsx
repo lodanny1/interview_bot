@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { LogoutButton } from "@/components/auth/LogoutButton";
+import { AccountMenu } from "@/components/layout/AccountMenu";
+import { logoutAction } from "@/app/logout/actions";
 
 type SidebarUser = {
   display_name: string | null;
@@ -58,16 +59,17 @@ export function Sidebar({
     user.display_name?.trim() ||
     user.email.split("@")[0];
 
-  const initial =
-    displayName.charAt(0).toUpperCase();
-
   const plan =
     user.access_tier === "PREMIUM"
       ? "Premium plan"
       : "Basic plan";
 
+  async function handleSignOut() {
+    await logoutAction();
+  }
+
   return (
-    <aside className="flex flex-col w-64 min-h-screen bg-card border-r border-line-subtle">
+    <aside className="flex h-screen w-64 shrink-0 flex-col bg-card border-r border-line-subtle">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 h-24 border-b border-line-subtle">
         <div className="w-10 h-10 bg-cta rounded-xl flex items-center justify-center">
@@ -80,7 +82,7 @@ export function Sidebar({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-6 space-y-2">
+      <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-6">
         {navItems.map((item) => {
           const isActive =
             item.href === "/dashboard"
@@ -131,28 +133,18 @@ export function Sidebar({
         </Link>
       </div>
 
-      {/* Logout */}
-      <div className="px-4 pb-2">
-        <LogoutButton />
-      </div>
-
-      {/* User */}
-      <div className="flex items-center gap-3 px-6 py-5 border-t border-line-subtle">
-        <div className="w-10 h-10 bg-tinted text-link rounded-full flex items-center justify-center text-sm font-semibold">
-          {initial}
-        </div>
-
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-primary truncate">
-            {displayName}
-          </p>
-
-          <p className="text-xs text-tertiary">
-            {user.role === "ADMIN"
-              ? `Admin · ${plan}`
-              : plan}
-          </p>
-        </div>
+      {/* Account Menu */}
+      <div className="border-t border-line-subtle px-3 py-3">
+        <AccountMenu
+          user={{
+            name: displayName,
+            plan:
+              user.role === "ADMIN"
+                ? `Admin · ${plan}`
+                : plan,
+          }}
+          onSignOut={handleSignOut}
+        />
       </div>
     </aside>
   );

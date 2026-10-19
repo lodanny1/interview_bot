@@ -1,6 +1,8 @@
 "use client";
 
-import { startTransition, useActionState, useState, type FormEvent } from "react";
+import { startTransition, useActionState, useRef, useState, type FormEvent, type ReactNode } from "react";
+import Link from "next/link";
+import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { validateLogin, type LoginFieldErrors } from "@/lib/auth/login-validation";
 import {
@@ -8,6 +10,7 @@ import {
   type LoginAction,
   type LoginFormState,
 } from "@/lib/auth/login-form-state";
+import { GoogleIcon } from "./GoogleIcon";
 
 interface LoginFormProps {
   action: LoginAction;
@@ -16,6 +19,8 @@ interface LoginFormProps {
 export function LoginForm({ action }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const emailInput = useRef<HTMLInputElement>(null);
   // Errors from client-side validation, when the action is never called.
   const [clientErrors, setClientErrors] = useState<LoginFieldErrors>({});
 
@@ -60,42 +65,95 @@ export function LoginForm({ action }: LoginFormProps) {
   const formError = showServerState ? state.formError : undefined;
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-5">
-      {formError && (
-        <p
-          role="alert"
-          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+    <form onSubmit={handleSubmit} noValidate className="su-form">
+      {/* Placeholders until Cognito federation is set up. */}
+      <div className="su-providers">
+        <button
+          type="button"
+          className="su-provider"
+          disabled
+          title="Google sign-in is coming soon"
         >
+          <GoogleIcon /> Google
+        </button>
+        <button
+          type="button"
+          className="su-provider"
+          onClick={() => emailInput.current?.focus()}
+        >
+          <Mail size={16} aria-hidden="true" /> Email
+        </button>
+      </div>
+
+      <p className="su-divider">Or login with email</p>
+
+      {formError && (
+        <p role="alert" className="su-alert su-alert-error">
           {formError}
         </p>
       )}
 
       <LoginField
         id="email"
-        label="Email"
-        type="email"
-        autoComplete="email"
-        value={email}
-        onChange={setEmail}
+        label="Work or personal email"
         error={fieldErrors.email}
-      />
+        icon={<Mail size={18} />}
+      >
+        <input
+          ref={emailInput}
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          placeholder="name@example.com"
+          required
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          aria-invalid={fieldErrors.email ? true : undefined}
+          aria-describedby={fieldErrors.email ? "email-error" : undefined}
+          className="su-input"
+        />
+      </LoginField>
 
       <LoginField
         id="password"
         label="Password"
-        type="password"
-        autoComplete="current-password"
-        value={password}
-        onChange={setPassword}
         error={fieldErrors.password}
-      />
-
-      <button
-        type="submit"
-        disabled={pending}
-        className="w-full py-3 bg-gray-800 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+        icon={<LockKeyhole size={18} />}
+        after={
+          <button
+            type="button"
+            className="su-eye"
+            onClick={() => setShowPassword((shown) => !shown)}
+            aria-label={showPassword ? "Hide password" : "Show password"}
+            aria-pressed={showPassword}
+          >
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        }
       >
+        <input
+          id="password"
+          name="password"
+          type={showPassword ? "text" : "password"}
+          autoComplete="current-password"
+          placeholder="••••••••"
+          required
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          aria-invalid={fieldErrors.password ? true : undefined}
+          aria-describedby={fieldErrors.password ? "password-error" : undefined}
+          className="su-input"
+        />
+      </LoginField>
+
+      <Link href="/forgot-password" className="su-link login-forgot">
+        Forgot password?
+      </Link>
+
+      <button type="submit" disabled={pending} className="su-submit login-submit">
         {pending ? "Signing in…" : "Sign In"}
+        {!pending && <ArrowRight size={18} aria-hidden="true" />}
       </button>
     </form>
   );
@@ -104,44 +162,32 @@ export function LoginForm({ action }: LoginFormProps) {
 function LoginField({
   id,
   label,
-  type,
-  autoComplete,
-  value,
-  onChange,
   error,
+  icon,
+  after,
+  children,
 }: {
   id: string;
   label: string;
-  type: "email" | "password";
-  autoComplete: string;
-  value: string;
-  onChange: (value: string) => void;
   error?: string;
+  icon: ReactNode;
+  after?: ReactNode;
+  children: ReactNode;
 }) {
-  const errorId = `${id}-error`;
-
   return (
-    <div className="space-y-2">
-      <label htmlFor={id} className="text-sm font-medium text-gray-700">
+    <div className="su-field">
+      <label htmlFor={id} className="su-label">
         {label}
       </label>
-      <input
-        id={id}
-        name={id}
-        type={type}
-        autoComplete={autoComplete}
-        required
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? errorId : undefined}
-        className={cn(
-          "w-full px-4 py-2.5 bg-gray-100 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-300",
-          error && "border-red-300 focus:ring-red-200"
-        )}
-      />
+      <div className={cn("su-input-wrap", error && "su-input-error")}>
+        <span className="su-input-icon" aria-hidden="true">
+          {icon}
+        </span>
+        {children}
+        {after}
+      </div>
       {error && (
-        <p id={errorId} className="text-sm text-red-600">
+        <p id={`${id}-error`} className="su-error">
           {error}
         </p>
       )}

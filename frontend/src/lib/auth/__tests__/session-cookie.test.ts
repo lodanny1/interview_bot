@@ -3,11 +3,12 @@ import { CognitoJwtVerifier } from "aws-jwt-verify";
 import {
   SESSION_COOKIE_NAME,
   createSession,
+  deleteSession,
   readSession,
 } from "@/lib/auth/session-cookie";
 
 const { cookieStore, mockVerify } = vi.hoisted(() => ({
-  cookieStore: { get: vi.fn(), set: vi.fn() },
+  cookieStore: { get: vi.fn(), set: vi.fn(), delete: vi.fn() },
   mockVerify: vi.fn(),
 }));
 
@@ -23,6 +24,7 @@ describe("session cookie", () => {
   beforeEach(() => {
     cookieStore.get.mockReset();
     cookieStore.set.mockReset();
+    cookieStore.delete.mockReset();
     mockVerify.mockReset();
     vi.stubEnv("COGNITO_REGION", "test-region-1");
     vi.stubEnv("COGNITO_USER_POOL_ID", "test-region-1_TESTPOOL");
@@ -58,6 +60,14 @@ describe("session cookie", () => {
     ])("refuses incomplete token data (%s)", async (_label, tokens) => {
       await expect(createSession(tokens)).rejects.toThrow();
       expect(cookieStore.set).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("deleteSession", () => {
+    it("removes the session cookie", async () => {
+      await deleteSession();
+
+      expect(cookieStore.delete).toHaveBeenCalledWith(SESSION_COOKIE_NAME);
     });
   });
 

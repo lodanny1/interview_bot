@@ -12,23 +12,102 @@ import {
   Play,
   Target,
   Timer,
-  TrendingUp,
   MessageSquare,
   type LucideIcon,
 } from "lucide-react";
-import Link from "next/link";
-import { mockUpcoming, mockSessions, mockUser } from "@/lib/mock-data";
 
-// Not in mock data yet — swap for real values when available.
+import Link from "next/link";
+import { cookies } from "next/headers";
+
+import { mockUpcoming, mockSessions } from "@/lib/mock-data";
+
 const dailyGoal = { done: 45, target: 60 };
 const upcomingTime = "2:00 PM";
 const upcomingDuration = 45;
 
-type Tag = { label: string; tone: "good" | "improve" };
-type Session = (typeof mockSessions)[number] & { tags?: Tag[] };
+type Tag = {
+  label: string;
+  tone: "good" | "improve";
+};
 
-export default function DashboardPage() {
+type Session = (typeof mockSessions)[number] & {
+  tags?: Tag[];
+};
+
+interface ApplicationUser {
+  id: string;
+  email: string;
+  display_name: string | null;
+  role: string;
+  account_status: string;
+  access_tier: string;
+  cognito_sub: string;
+  created_at: string;
+}
+
+interface UserProfile {
+  user_id: string;
+  target_role: string | null;
+  target_company: string | null;
+  experience_level: string | null;
+  focus_areas: string | null;
+  bio: string | null;
+  updated_at: string;
+}
+
+interface MeResponse {
+  user: ApplicationUser;
+  profile: UserProfile | null;
+}
+
+async function getCurrentUser(): Promise<MeResponse | null> {
+  try {
+    const cookieStore = await cookies();
+    const idToken = cookieStore.get("ib_session")?.value;
+
+    if (!idToken) {
+      return null;
+    }
+
+    const backendUrl = process.env.BACKEND_URL;
+
+    if (!backendUrl) {
+      console.error("BACKEND_URL is not configured.");
+      return null;
+    }
+
+    const response = await fetch(`${backendUrl}/me`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      console.error(
+        `Failed to load authenticated user: ${response.status}`
+      );
+
+      return null;
+    }
+
+    return (await response.json()) as MeResponse;
+  } catch (error) {
+    console.error("Failed to load dashboard user:", error);
+    return null;
+  }
+}
+
+export default async function DashboardPage() {
+  const me = await getCurrentUser();
+
   const sessions = (mockSessions as Session[]).slice(0, 2);
+
+  const firstName =
+    me?.user.display_name?.trim().split(/\s+/)[0] ??
+    me?.user.email?.split("@")[0] ??
+    "there";
 
   return (
     <div className="p-10 w-full">
@@ -36,17 +115,43 @@ export default function DashboardPage() {
       <div className="flex items-start justify-between gap-6 mb-10">
         <div>
           <h1 className="text-5xl font-bold tracking-tight text-primary mb-2">
-            Welcome back, {mockUser.name.split(" ")[0]}.
+            Welcome back, {firstName}.
           </h1>
+
           <p className="text-lg text-tertiary">
             You have 1 upcoming interview and 3 tasks to complete today.
           </p>
+
+          {me?.profile?.target_role && (
+            <p className="text-sm text-tertiary mt-2">
+              Preparing for:{" "}
+              <span className="font-medium text-primary">
+                {me.profile.target_role}
+              </span>
+            </p>
+          )}
         </div>
+
+        {me?.user.role === "ADMIN" && (
+          <div className="flex flex-col items-end gap-1">
+            <span className="px-3 py-1 rounded-full bg-tinted text-cta font-mono text-xs uppercase tracking-wider">
+              Admin
+            </span>
+
+            <span className="font-mono text-[11px] uppercase tracking-wider text-tertiary">
+              {me.user.access_tier}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Top Row */}
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6 mb-10">
-        <DailyGoalCard done={dailyGoal.done} target={dailyGoal.target} />
+        <DailyGoalCard
+          done={dailyGoal.done}
+          target={dailyGoal.target}
+        />
+
         <UpcomingCard />
       </div>
 
@@ -56,16 +161,22 @@ export default function DashboardPage() {
           <h2 className="text-2xl font-medium text-primary">
             Recent Practice Analysis
           </h2>
+
           <Link
             href="/interviews"
             className="flex items-center gap-1 text-sm font-semibold text-link hover:text-link-hover"
           >
-            View All <ArrowRight className="w-4 h-4" />
+            View All
+            <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
+
         <div className="divide-y divide-line-subtle">
           {sessions.map((session) => (
-            <SessionRow key={session.id} session={session} />
+            <SessionRow
+              key={session.id}
+              session={session}
+            />
           ))}
         </div>
       </section>
@@ -73,16 +184,29 @@ export default function DashboardPage() {
   );
 }
 
-function DailyGoalCard({ done, target }: { done: number; target: number }) {
+function DailyGoalCard({
+  done,
+  target,
+}: {
+  done: number;
+  target: number;
+}) {
   const pct = Math.min(100, Math.round((done / target) * 100));
   const onTrack = pct >= 50;
+
   return (
     <div className="p-6 bg-card rounded-2xl border border-line-subtle shadow-sm flex flex-col">
       <div className="flex items-start justify-between mb-4">
         <div>
-          <h3 className="text-xl font-medium text-primary">Daily Goal</h3>
-          <p className="text-sm text-tertiary">Practice minutes</p>
+          <h3 className="text-xl font-medium text-primary">
+            Daily Goal
+          </h3>
+
+          <p className="text-sm text-tertiary">
+            Practice minutes
+          </p>
         </div>
+
         <div className="w-9 h-9 rounded-full bg-tinted flex items-center justify-center">
           <Target className="w-5 h-5 text-cta" />
         </div>
@@ -90,7 +214,10 @@ function DailyGoalCard({ done, target }: { done: number; target: number }) {
 
       <div className="flex-1 flex items-center justify-center py-2">
         <div className="relative w-28 h-28">
-          <svg className="w-28 h-28 -rotate-90" viewBox="0 0 36 36">
+          <svg
+            className="w-28 h-28 -rotate-90"
+            viewBox="0 0 36 36"
+          >
             <circle
               cx="18"
               cy="18"
@@ -99,6 +226,7 @@ function DailyGoalCard({ done, target }: { done: number; target: number }) {
               stroke="var(--border-subtle)"
               strokeWidth="3"
             />
+
             <circle
               cx="18"
               cy="18"
@@ -110,10 +238,12 @@ function DailyGoalCard({ done, target }: { done: number; target: number }) {
               strokeDasharray={`${pct}, 100`}
             />
           </svg>
+
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-3xl font-medium text-primary leading-none">
               {done}
             </span>
+
             <span className="font-mono text-[11px] text-tertiary mt-1">
               / {target} min
             </span>
@@ -140,23 +270,29 @@ function UpcomingCard() {
           <CalendarDays className="w-3.5 h-3.5" />
           Upcoming Today
         </span>
-        <span className="text-2xl font-medium">{upcomingTime}</span>
+
+        <span className="text-2xl font-medium">
+          {upcomingTime}
+        </span>
       </div>
 
       <div>
         <h3 className="text-4xl font-bold tracking-tight mb-3">
           {mockUpcoming.role}
         </h3>
+
         <div className="flex items-center gap-6 text-white/85 mb-6">
           <span className="flex items-center gap-2">
             <Building2 className="w-5 h-5" />
             {mockUpcoming.company}
           </span>
+
           <span className="flex items-center gap-2">
             <Timer className="w-5 h-5" />
             {upcomingDuration} Min • {mockUpcoming.type}
           </span>
         </div>
+
         <div className="flex items-center gap-3">
           <Link
             href="/calendar"
@@ -165,6 +301,7 @@ function UpcomingCard() {
             <Play className="w-4 h-4" />
             Start Prep Session
           </Link>
+
           <Link
             href="/calendar"
             className="inline-flex items-center gap-2 px-5 py-3 border border-white/40 text-white text-sm font-semibold rounded-lg hover:bg-white/10 transition-colors"
@@ -184,8 +321,14 @@ const modeIcons: Record<string, LucideIcon> = {
   avatar: BrainCircuit,
 };
 
-function SessionRow({ session }: { session: Session }) {
-  const Icon = modeIcons[session.mode] ?? MessageSquare;
+function SessionRow({
+  session,
+}: {
+  session: Session;
+}) {
+  const Icon =
+    modeIcons[session.mode] ?? MessageSquare;
+
   return (
     <Link
       href="/interviews"
@@ -199,6 +342,7 @@ function SessionRow({ session }: { session: Session }) {
         <p className="text-lg font-medium text-primary truncate">
           {session.title}
         </p>
+
         <p className="text-tertiary">
           {session.date} • {session.duration} mins
         </p>
@@ -219,6 +363,7 @@ function SessionRow({ session }: { session: Session }) {
             ) : (
               <Lightbulb className="w-3.5 h-3.5" />
             )}
+
             {tag.label}
           </span>
         ))}
@@ -228,10 +373,12 @@ function SessionRow({ session }: { session: Session }) {
         <p className="text-2xl font-medium text-primary leading-tight">
           {session.score}/100
         </p>
+
         <p className="font-mono text-[11px] uppercase tracking-wider text-tertiary">
           Overall Score
         </p>
       </div>
+
       <ChevronRight className="w-5 h-5 text-tertiary shrink-0" />
     </Link>
   );

@@ -1,7 +1,6 @@
 // Shared contract between the Create Account form and its server action.
 // Never carries the password back to the browser.
 import type { SignUpFieldErrors } from "./signup-validation";
-import { POST_LOGIN_REDIRECT } from "./login-form-state";
 
 // "details" = name/email/password form, "confirm" = enter the emailed code.
 export type SignUpStep = "details" | "confirm";
@@ -46,6 +45,6 @@ export const SIGNUP_NOTICES = {
   codeResent: "We sent you a new code.",
 } as const;
 
-// New accounts land in the same place as a normal sign-in. When Complete User
-// Setup (#05) exists, point this at the setup page instead.
-export const POST_SIGNUP_REDIRECT = POST_LOGIN_REDIRECT;
+// New accounts go to Complete User Setup (#05) before the dashboard.
+// app/setup/page.tsx; matches SETUP_PATH in lib/setup/setup-form-state.ts.
+export const POST_SIGNUP_REDIRECT = "/setup";

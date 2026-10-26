@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { SettingsForm } from "@/components/settings/SettingsForm";
 import type { Plan, SettingsValues } from "@/types/settings";
+import { mockMeResponse } from "@/mocks/mock-auth-user";
 
 type MeResponse = {
   user: {
@@ -25,7 +26,24 @@ type MeResponse = {
   } | null;
 };
 
-async function getSettingsData() {
+const useMockData = process.env.USE_MOCK_DATA === "true";
+
+async function getSettingsData(): Promise<MeResponse> {
+  if (useMockData) {
+    return {
+      ...mockMeResponse,
+      profile: {
+        user_id: mockMeResponse.user.id,
+        target_role: "Software Engineer",
+        target_company: "Example Company",
+        experience_level: "Entry Level",
+        focus_areas: "Cloud, AI, Backend",
+        bio: "Mock profile for frontend development.",
+        updated_at: new Date().toISOString(),
+      },
+    };
+  }
+
   const cookieStore = await cookies();
   const idToken = cookieStore.get("ib_session")?.value;
 

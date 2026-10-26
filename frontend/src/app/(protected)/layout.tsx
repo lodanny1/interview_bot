@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { readSession } from "@/lib/auth/session-cookie";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { SETUP_PATH } from "@/lib/setup/setup-form-state";
+import { mockMeResponse } from "@/mocks/mock-auth-user";
 
 type MeResponse = {
   user: {
@@ -14,11 +15,16 @@ type MeResponse = {
     account_status: string;
     access_tier: string;
   };
-  // undefined when the backend is older than Complete User Setup (#05).
   setupCompleted?: boolean;
 };
 
+const useMockData = process.env.USE_MOCK_DATA === "true";
+
 async function getCurrentUser(): Promise<MeResponse> {
+  if (useMockData) {
+    return mockMeResponse;
+  }
+
   const cookieStore = await cookies();
   const idToken = cookieStore.get("ib_session")?.value;
 
@@ -58,17 +64,17 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await readSession();
+  if (!useMockData) {
+    const session = await readSession();
 
-  if (!session) {
-    redirect("/login");
+    if (!session) {
+      redirect("/login");
+    }
   }
 
   const { user, setupCompleted } = await getCurrentUser();
 
-  // Users must finish setup before using the app (#05). Only redirect on an
-  // explicit false so an older backend without the flag doesn't loop.
-  if (setupCompleted === false) {
+  if (!useMockData && setupCompleted === false) {
     redirect(SETUP_PATH);
   }
 

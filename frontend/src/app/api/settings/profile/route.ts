@@ -1,7 +1,24 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+const useMockData = process.env.USE_MOCK_DATA === "true";
+
 export async function PATCH(request: Request) {
+  const body = await request.json();
+
+  if (useMockData) {
+    return NextResponse.json(
+      {
+        success: true,
+        profile: {
+          fullName: body.fullName,
+          role: body.role,
+        },
+      },
+      { status: 200 }
+    );
+  }
+
   const cookieStore = await cookies();
   const idToken = cookieStore.get("ib_session")?.value;
 
@@ -20,8 +37,6 @@ export async function PATCH(request: Request) {
       { status: 500 }
     );
   }
-
-  const body = await request.json();
 
   const response = await fetch(
     `${backendUrl}/me/profile`,

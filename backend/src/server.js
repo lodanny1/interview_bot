@@ -9,6 +9,10 @@ const {
   getUserProfile,
   upsertUserProfile,
 } = require("./users/user-profile-repository");
+const {
+  validateUserSetup,
+  isSetupComplete,
+} = require("./users/user-setup");
 
 const app = express();
 app.disable("x-powered-by");
@@ -152,12 +156,77 @@ app.get("/me", async (req, res) => {
     return res.status(200).json({
       user,
       profile,
+      setupCompleted: isSetupComplete(profile),
     });
   } catch (error) {
     console.error("GET /me failed:", error);
 
     return res.status(401).json({
       error: "Authentication failed",
+    });
+  }
+});
+
+// Complete User Setup (Issue #05). Saves the personalization fields from the
+// setup page. Required: targetRole, experienceLevel, focusAreas.
+app.put("/me/setup", async (req, res) => {
+  let user;
+
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({
+        error: "Missing or invalid Authorization header",
+      });
+    }
+
+    const token = authHeader.substring("Bearer ".length);
+    const payload = await verifyIdToken(token);
+
+    user = await getOrCreateUser({
+      cognitoSub: payload.sub,
+      email: payload.email,
+      displayName: payload.name || payload.email,
+    });
+  } catch (error) {
+    console.error("PUT /me/setup auth failed:", error);
+
+    return res.status(401).json({
+      error: "Authentication failed",
+    });
+  }
+
+  if (user.account_status !== "ACTIVE") {
+    return res.status(403).json({
+      error: "Account is disabled",
+    });
+  }
+
+  const validation = validateUserSetup(req.body);
+
+  if (!validation.ok) {
+    return res.status(400).json({
+      error: "Some setup information is missing or invalid",
+      fieldErrors: validation.fieldErrors,
+    });
+  }
+
+  try {
+    const profile = await upsertUserProfile({
+      userId: user.id,
+      ...validation.data,
+    });
+
+    return res.status(200).json({
+      profile,
+      setupCompleted: isSetupComplete(profile),
+    });
+  } catch (error) {
+    console.error("PUT /me/setup failed:", error);
+
+    return res.status(500).json({
+      error: "Unable to save setup information",
     });
   }
 });

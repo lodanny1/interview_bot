@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { readSession } from "@/lib/auth/session-cookie";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { SETUP_PATH } from "@/lib/setup/setup-form-state";
 
 type MeResponse = {
   user: {
@@ -13,9 +14,11 @@ type MeResponse = {
     account_status: string;
     access_tier: string;
   };
+  // undefined when the backend is older than Complete User Setup (#05).
+  setupCompleted?: boolean;
 };
 
-async function getCurrentUser(): Promise<MeResponse["user"]> {
+async function getCurrentUser(): Promise<MeResponse> {
   const cookieStore = await cookies();
   const idToken = cookieStore.get("ib_session")?.value;
 
@@ -47,9 +50,7 @@ async function getCurrentUser(): Promise<MeResponse["user"]> {
     );
   }
 
-  const data = (await response.json()) as MeResponse;
-
-  return data.user;
+  return (await response.json()) as MeResponse;
 }
 
 export default async function DashboardLayout({
@@ -63,7 +64,13 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const user = await getCurrentUser();
+  const { user, setupCompleted } = await getCurrentUser();
+
+  // Users must finish setup before using the app (#05). Only redirect on an
+  // explicit false so an older backend without the flag doesn't loop.
+  if (setupCompleted === false) {
+    redirect(SETUP_PATH);
+  }
 
   return (
     <div className="flex min-h-screen">

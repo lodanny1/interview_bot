@@ -58,6 +58,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run backend tests
+        run: npm test
+
       - name: Validate server syntax
         run: node --check src/server.js
 

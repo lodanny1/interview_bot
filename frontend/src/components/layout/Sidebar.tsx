@@ -8,6 +8,8 @@ import {
   MessageSquare,
   Calendar,
   BarChart3,
+  Briefcase,
+  FileText,
   Plus,
   Users,
 } from "lucide-react";
@@ -33,6 +35,16 @@ const navItems = [
     href: "/interviews",
     label: "Interviews",
     icon: MessageSquare,
+  },
+  {
+    href: "/target-job",
+    label: "Target Job",
+    icon: Briefcase,
+  },
+  {
+    href: "/resume",
+    label: "Resume",
+    icon: FileText,
   },
   {
     href: "/calendar",

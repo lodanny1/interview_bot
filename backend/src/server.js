@@ -13,6 +13,18 @@ const {
   validateUserSetup,
   isSetupComplete,
 } = require("./users/user-setup");
+const { requireActiveUser } = require("./auth/require-active-user");
+const {
+  validateTargetJob,
+} = require("./target-jobs/target-job-validation");
+const {
+  getTargetJob,
+  upsertTargetJob,
+  deleteTargetJob,
+} = require("./target-jobs/target-job-repository");
+const { createResumeRouter } = require("./resumes/resume-routes");
+const resumeRepository = require("./resumes/resume-repository");
+const resumeStorage = require("./resumes/resume-storage");
 
 const app = express();
 app.disable("x-powered-by");
@@ -230,6 +242,88 @@ app.put("/me/setup", async (req, res) => {
     });
   }
 });
+
+// Add Target Job Description (Issue #09). One target job per user.
+app.get("/me/target-job", async (req, res) => {
+  const auth = await requireActiveUser(req);
+
+  if (!auth.ok) {
+    return res.status(auth.status).json({ error: auth.error });
+  }
+
+  try {
+    const targetJob = await getTargetJob(auth.user.id);
+
+    return res.status(200).json({ targetJob });
+  } catch (error) {
+    console.error("GET /me/target-job failed:", error);
+
+    return res.status(500).json({
+      error: "Unable to load target job",
+    });
+  }
+});
+
+app.put("/me/target-job", async (req, res) => {
+  const auth = await requireActiveUser(req);
+
+  if (!auth.ok) {
+    return res.status(auth.status).json({ error: auth.error });
+  }
+
+  const validation = validateTargetJob(req.body);
+
+  if (!validation.ok) {
+    return res.status(400).json({
+      error: "Some target job information is missing or invalid",
+      fieldErrors: validation.fieldErrors,
+    });
+  }
+
+  try {
+    const targetJob = await upsertTargetJob({
+      userId: auth.user.id,
+      ...validation.data,
+    });
+
+    return res.status(200).json({ targetJob });
+  } catch (error) {
+    console.error("PUT /me/target-job failed:", error);
+
+    return res.status(500).json({
+      error: "Unable to save target job",
+    });
+  }
+});
+
+app.delete("/me/target-job", async (req, res) => {
+  const auth = await requireActiveUser(req);
+
+  if (!auth.ok) {
+    return res.status(auth.status).json({ error: auth.error });
+  }
+
+  try {
+    await deleteTargetJob(auth.user.id);
+
+    return res.status(204).end();
+  } catch (error) {
+    console.error("DELETE /me/target-job failed:", error);
+
+    return res.status(500).json({
+      error: "Unable to remove target job",
+    });
+  }
+});
+
+// Upload Resume (Issue #06). Routes are in resumes/resume-routes.js.
+app.use(
+  createResumeRouter({
+    requireActiveUser,
+    repository: resumeRepository,
+    storage: resumeStorage,
+  })
+);
 
 app.post("/auth/sync-user", async (req, res) => {
   try {

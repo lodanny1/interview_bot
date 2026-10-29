@@ -1,8 +1,10 @@
-// Upload Resume (Issue #06). Database access for the resumes table.
-// The table is created by backend/sql/002_create_resumes.sql.
+// Upload Resume (Issue #06).
+// Database access for a user's zero-to-many saved resumes.
+
 const { createPool } = require("../db/postgres");
 
 const COLUMNS = `
+  id,
   user_id,
   s3_key,
   file_name,
@@ -11,26 +13,8 @@ const COLUMNS = `
   uploaded_at
 `;
 
-async function getResume(userId) {
-  if (!userId) {
-    throw new Error("userId is required");
-  }
-
-  const pool = await createPool();
-
-  try {
-    const result = await pool.query(
-      `SELECT ${COLUMNS} FROM resumes WHERE user_id = $1 LIMIT 1`,
-      [userId]
-    );
-
-    return result.rows[0] || null;
-  } finally {
-    await pool.end();
-  }
-}
-
-async function upsertResume({ userId, s3Key, fileName, contentType, sizeBytes }) {
+// Return every resume owned by the user, newest first.
+async function getResumes(userId) {
   if (!userId) {
     throw new Error("userId is required");
   }
@@ -40,15 +24,75 @@ async function upsertResume({ userId, s3Key, fileName, contentType, sizeBytes })
   try {
     const result = await pool.query(
       `
-        INSERT INTO resumes (user_id, s3_key, file_name, content_type, size_bytes)
+        SELECT ${COLUMNS}
+        FROM resumes
+        WHERE user_id = $1
+        ORDER BY uploaded_at DESC
+      `,
+      [userId]
+    );
+
+    return result.rows;
+  } finally {
+    await pool.end();
+  }
+}
+
+// Return one resume only when it belongs to the authenticated user.
+async function getResume(userId, resumeId) {
+  if (!userId) {
+    throw new Error("userId is required");
+  }
+
+  if (!resumeId) {
+    throw new Error("resumeId is required");
+  }
+
+  const pool = await createPool();
+
+  try {
+    const result = await pool.query(
+      `
+        SELECT ${COLUMNS}
+        FROM resumes
+        WHERE user_id = $1
+          AND id = $2
+        LIMIT 1
+      `,
+      [userId, resumeId]
+    );
+
+    return result.rows[0] || null;
+  } finally {
+    await pool.end();
+  }
+}
+
+// Store a new resume rather than replacing the user's existing resume.
+async function createResume({
+  userId,
+  s3Key,
+  fileName,
+  contentType,
+  sizeBytes,
+}) {
+  if (!userId) {
+    throw new Error("userId is required");
+  }
+
+  const pool = await createPool();
+
+  try {
+    const result = await pool.query(
+      `
+        INSERT INTO resumes (
+          user_id,
+          s3_key,
+          file_name,
+          content_type,
+          size_bytes
+        )
         VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (user_id)
-        DO UPDATE SET
-          s3_key = EXCLUDED.s3_key,
-          file_name = EXCLUDED.file_name,
-          content_type = EXCLUDED.content_type,
-          size_bytes = EXCLUDED.size_bytes,
-          uploaded_at = CURRENT_TIMESTAMP
         RETURNING ${COLUMNS}
       `,
       [userId, s3Key, fileName, contentType, sizeBytes]
@@ -60,18 +104,27 @@ async function upsertResume({ userId, s3Key, fileName, contentType, sizeBytes })
   }
 }
 
-// Returns the removed row, or null if there was none.
-async function deleteResume(userId) {
+// Delete only the requested resume and only if the user owns it.
+async function deleteResume(userId, resumeId) {
   if (!userId) {
     throw new Error("userId is required");
+  }
+
+  if (!resumeId) {
+    throw new Error("resumeId is required");
   }
 
   const pool = await createPool();
 
   try {
     const result = await pool.query(
-      `DELETE FROM resumes WHERE user_id = $1 RETURNING ${COLUMNS}`,
-      [userId]
+      `
+        DELETE FROM resumes
+        WHERE user_id = $1
+          AND id = $2
+        RETURNING ${COLUMNS}
+      `,
+      [userId, resumeId]
     );
 
     return result.rows[0] || null;
@@ -81,7 +134,8 @@ async function deleteResume(userId) {
 }
 
 module.exports = {
+  getResumes,
   getResume,
-  upsertResume,
+  createResume,
   deleteResume,
 };

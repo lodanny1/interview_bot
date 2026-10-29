@@ -1,17 +1,21 @@
--- Upload Resume (Issue #06).
--- Run once against the application database before deploying the backend
--- routes GET/PUT/DELETE /me/resume and GET /me/resume/file.
---
--- One resume per user. The file itself lives in the private S3 bucket named
--- by RESUME_BUCKET; this table stores the S3 key and file details.
--- user_id must match the type of users.id (change UUID to TEXT below if
--- users.id is a TEXT column).
+-- Issue #06: Upload Resume
+-- A user may store multiple resumes for different interview targets.
 
 CREATE TABLE IF NOT EXISTS resumes (
-  user_id      UUID PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
-  s3_key       TEXT          NOT NULL,
-  file_name    VARCHAR(255)  NOT NULL,
-  content_type VARCHAR(120)  NOT NULL,
-  size_bytes   INTEGER       NOT NULL CHECK (size_bytes > 0),
-  uploaded_at  TIMESTAMPTZ   NOT NULL DEFAULT CURRENT_TIMESTAMP
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  user_id UUID NOT NULL
+    REFERENCES users(id)
+    ON DELETE CASCADE,
+
+  s3_key TEXT NOT NULL UNIQUE,
+  file_name TEXT NOT NULL,
+  content_type TEXT NOT NULL,
+  size_bytes BIGINT NOT NULL CHECK (size_bytes >= 0),
+
+  uploaded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+-- A user can own many resumes, so user_id is indexed rather than unique.
+CREATE INDEX IF NOT EXISTS idx_resumes_user_id
+  ON resumes(user_id);

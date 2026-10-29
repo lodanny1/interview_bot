@@ -9,6 +9,7 @@ import {
   Calendar,
   BarChart3,
   Briefcase,
+  FileText,
   Plus,
   Users,
 } from "lucide-react";
@@ -39,6 +40,11 @@ const navItems = [
     href: "/target-job",
     label: "Target Job",
     icon: Briefcase,
+  },
+  {
+    href: "/resume",
+    label: "Resume",
+    icon: FileText,
   },
   {
     href: "/calendar",

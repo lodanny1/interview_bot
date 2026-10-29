@@ -22,6 +22,9 @@ const {
   upsertTargetJob,
   deleteTargetJob,
 } = require("./target-jobs/target-job-repository");
+const { createResumeRouter } = require("./resumes/resume-routes");
+const resumeRepository = require("./resumes/resume-repository");
+const resumeStorage = require("./resumes/resume-storage");
 
 const app = express();
 app.disable("x-powered-by");
@@ -312,6 +315,15 @@ app.delete("/me/target-job", async (req, res) => {
     });
   }
 });
+
+// Upload Resume (Issue #06). Routes are in resumes/resume-routes.js.
+app.use(
+  createResumeRouter({
+    requireActiveUser,
+    repository: resumeRepository,
+    storage: resumeStorage,
+  })
+);
 
 app.post("/auth/sync-user", async (req, res) => {
   try {

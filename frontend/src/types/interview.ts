@@ -1,5 +1,7 @@
 export type InterviewMode = "text" | "voice" | "avatar";
 
+export type PracticeGoal = "general" | "specific";
+
 export interface InterviewSession {
   id: string;
   title: string;
@@ -52,4 +54,30 @@ export interface FeedbackReport {
   id: string;
   title: string;
   role: string;
+}
+
+/* ------------------- Start Interview Session (Issue #51) ------------------- */
+
+// What the setup form sends to the backend to start a session.
+// Optional fields are omitted (not sent as "") when the user leaves them empty.
+export interface StartInterviewInput {
+  goal: PracticeGoal;
+  title: string;
+  focusArea: string;
+  mode: InterviewMode;
+  industry?: string;
+  roleLevel?: string;
+  experienceLevel?: string;
+  jobDescription?: string;
+}
+
+// An in-progress session. Different from InterviewSession above, which is a
+// finished-session history record (it has a score and a date).
+export interface ActiveInterviewSession {
+  id: string;
+  title: string;
+  mode: InterviewMode;
+  // Everything said so far. Right after start this holds the first question;
+  // when a session is reloaded it holds the transcript the backend has stored.
+  messages: InterviewMessage[];
 }

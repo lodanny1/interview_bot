@@ -46,3 +46,8 @@ export const FOCUS_AREAS: Option[] = [
 export function optionValues(options: Option[]): string[] {
   return options.map((o) => o.value);
 }
+
+// Display label for a stored value; falls back to the raw value if it isn't in the list.
+export function optionLabel(options: Option[], value: string): string {
+  return options.find((o) => o.value === value)?.label ?? value;
+}

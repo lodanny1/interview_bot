@@ -38,6 +38,12 @@ export function createMockSession(input: StartInterviewInput): ActiveInterviewSe
     id: `mock-${Date.now().toString(36)}`,
     title: input.title,
     mode: input.mode,
+    focusArea: input.focusArea,
+    industry: input.industry,
+    roleLevel: input.roleLevel,
+    experienceLevel: input.experienceLevel,
+    totalQuestions: 5,
+    estimatedMinutesRemaining: 15,
     messages: [firstQuestion(input.focusArea)],
   };
   store().set(session.id, session);
@@ -48,7 +54,15 @@ export function getMockSession(id: string): ActiveInterviewSession | null {
   const saved = store().get(id);
   if (saved) return saved;
   if (id.startsWith("mock-")) {
-    return { id, title: "Interview", mode: "text", messages: [firstQuestion("mixed")] };
+    return {
+      id,
+      title: "Interview",
+      mode: "text",
+      focusArea: "mixed",
+      totalQuestions: 5,
+      estimatedMinutesRemaining: 15,
+      messages: [firstQuestion("mixed")],
+    };
   }
   return null;
 }

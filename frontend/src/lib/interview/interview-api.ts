@@ -79,12 +79,33 @@ function parseSession(raw: unknown): ActiveInterviewSession | null {
     ? body.messages.map(parseMessage).filter((m): m is InterviewMessage => m !== null)
     : [];
 
-  return {
+  const session: ActiveInterviewSession = {
     id: body.id,
     title: typeof body.title === "string" && body.title ? body.title : "Interview",
     mode: body.mode,
+    focusArea: optionalString(body.focusArea) ?? "",
     messages,
   };
+
+  const industry = optionalString(body.industry);
+  if (industry) session.industry = industry;
+  const roleLevel = optionalString(body.roleLevel);
+  if (roleLevel) session.roleLevel = roleLevel;
+  const experienceLevel = optionalString(body.experienceLevel);
+  if (experienceLevel) session.experienceLevel = experienceLevel;
+
+  if (typeof body.totalQuestions === "number" && body.totalQuestions > 0) {
+    session.totalQuestions = Math.floor(body.totalQuestions);
+  }
+  if (typeof body.estimatedMinutesRemaining === "number" && body.estimatedMinutesRemaining >= 0) {
+    session.estimatedMinutesRemaining = Math.ceil(body.estimatedMinutesRemaining);
+  }
+
+  return session;
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 export async function startInterviewSession(

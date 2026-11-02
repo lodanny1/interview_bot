@@ -1,24 +1,9 @@
-import { cookies } from "next/headers";
-import Link from "next/link";
-import InterviewSession from "@/components/interview/InterviewSession";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/session-cookie-name";
-import {
-  isInterviewMockMode,
-  loadInterviewSession,
-} from "@/lib/interview/interview-api";
-import {
-  INTERVIEW_ERROR_MESSAGES,
-  INTERVIEW_SETUP_PATH,
-} from "@/lib/interview/interview-form-state";
+"use client";
 
 import { useCallback, useEffect, useRef, useState, Suspense } from "react";
-
 import { MessageSquare, Mic, User, MoreVertical, Send } from "lucide-react";
-
 import { useSearchParams } from "next/navigation";
-
 import { cn } from "@/lib/utils";
-
 import type {
   ActiveInterviewSession,
   InterviewMessage,
@@ -44,27 +29,17 @@ function InterviewSessionContent() {
   const sessionId = searchParams.get("id");
 
   const [session, setSession] = useState<ActiveInterviewSession | null>(null);
-
   const [mode, setMode] = useState<InterviewMode>("text");
-
   const [messages, setMessages] = useState<InterviewMessage[]>([]);
-
   const [input, setInput] = useState("");
-
   const [sending, setSending] = useState(false);
-
   const [ending, setEnding] = useState(false);
-
   const [timeRemaining, setTimeRemaining] = useState(30 * 60);
-
   const [loading, setLoading] = useState(Boolean(sessionId));
-
   const [error, setError] = useState<string | null>(
     sessionId ? null : "Interview session id is missing.",
   );
-
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
   const sessionStatusRef = useRef<"ACTIVE" | "COMPLETED" | "ABANDONED">(
     "ACTIVE",
   );
@@ -482,7 +457,13 @@ function InterviewSessionContent() {
         {mode === "voice" && <VoiceMode />}
 
         {mode === "avatar" && (
-          <AvatarMode input={input} setInput={setInput} onSend={handleSend} />
+          <AvatarMode
+            input={input}
+            setInput={setInput}
+            onSend={handleSend}
+            sending={sending}
+            disabled={interviewEnded || ending}
+          />
         )}
       </div>
     </div>
@@ -613,12 +594,18 @@ function VoiceMode() {
   );
 }
 
-export default async function InterviewSessionPage({
-  searchParams,
+function AvatarMode({
+  input,
+  setInput,
+  onSend,
+  sending,
+  disabled,
 }: {
   input: string;
   setInput: (value: string) => void;
-  onSend: () => void;
+  onSend: () => void | Promise<void>;
+  sending: boolean;
+  disabled: boolean;
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -646,7 +633,8 @@ export default async function InterviewSessionPage({
           <button
             type="button"
             onClick={onSend}
-            className="rounded-lg p-2 transition-colors hover:bg-gray-200"
+            disabled={sending || disabled}
+            className="rounded-lg p-2 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Send className="h-4 w-4 text-gray-600" />
           </button>

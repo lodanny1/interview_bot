@@ -26,6 +26,7 @@ const { createResumeRouter } = require("./resumes/resume-routes");
 const resumeRepository = require("./resumes/resume-repository");
 const resumeStorage = require("./resumes/resume-storage");
 const resumeExtractionService = require("./resumes/resume-extraction-service");
+const { createKnowledgeRouter } = require("./knowledge/knowledge-routes");
 
 const app = express();
 app.disable("x-powered-by");
@@ -324,6 +325,15 @@ app.use(
     repository: resumeRepository,
     storage: resumeStorage,
     extractionService: resumeExtractionService,
+  })
+);
+
+// Role & Company Knowledge Retrieval (Issue #16). Interview insights for the
+// saved target job; routes are in knowledge/knowledge-routes.js.
+app.use(
+  createKnowledgeRouter({
+    requireActiveUser,
+    getTargetJob,
   })
 );
 

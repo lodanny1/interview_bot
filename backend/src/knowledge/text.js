@@ -5,7 +5,7 @@
 function foldText(value) {
   return String(value)
     .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/\p{M}/gu, "")
     .toLowerCase();
 }
 

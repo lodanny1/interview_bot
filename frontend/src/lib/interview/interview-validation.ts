@@ -26,6 +26,7 @@ export interface RawStartInterview {
   focusArea: unknown;
   mode: unknown;
   jobDescription: unknown;
+  resumeId: unknown;
 }
 
 export type StartInterviewValidation =
@@ -77,6 +78,8 @@ export function validateStartInterview(raw: RawStartInterview): StartInterviewVa
     fieldErrors.experienceLevel = "Choose one of the listed experience levels.";
   }
 
+  const resumeId = text(raw.resumeId);
+
   const jobDescription = text(raw.jobDescription);
   if (jobDescription.length > JOB_DESCRIPTION_MAX_LENGTH) {
     fieldErrors.jobDescription = `Keep the job description under ${JOB_DESCRIPTION_MAX_LENGTH} characters.`;
@@ -96,6 +99,7 @@ export function validateStartInterview(raw: RawStartInterview): StartInterviewVa
   if (roleLevel) data.roleLevel = roleLevel;
   if (experienceLevel) data.experienceLevel = experienceLevel;
   if (jobDescription) data.jobDescription = jobDescription;
+  if (resumeId) data.resumeId = resumeId;
 
   return { ok: true, data };
 }

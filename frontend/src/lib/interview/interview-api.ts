@@ -83,6 +83,28 @@ function parseSession(raw: unknown): ActiveInterviewSession | null {
     id: body.id,
     title: typeof body.title === "string" && body.title ? body.title : "Interview",
     mode: body.mode,
+    status:
+      body.status === "COMPLETED" || body.status === "ABANDONED"
+        ? body.status
+        : "ACTIVE",
+    startedAt:
+      typeof body.startedAt === "string"
+        ? body.startedAt
+        : new Date().toISOString(),
+    endsAt:
+      typeof body.endsAt === "string"
+        ? body.endsAt
+        : new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+    durationMinutes:
+      typeof body.durationMinutes === "number"
+        ? body.durationMinutes
+        : 30,
+    completionReason:
+      body.completionReason === "USER_ENDED" ||
+      body.completionReason === "TIME_LIMIT" ||
+      body.completionReason === "ABANDONED"
+        ? body.completionReason
+        : null,
     messages,
   };
 }
@@ -183,5 +205,399 @@ export async function loadInterviewSession(
   } catch (error) {
     console.error("Loading interview failed:", error);
     return { ok: false, reason: "unavailable" };
+  }
+}
+
+export type SendInterviewMessageResult =
+  | {
+      ok: true;
+      messages: InterviewMessage[];
+      completed: boolean;
+      completionReason:
+        | "TIME_LIMIT"
+        | "USER_ENDED"
+        | "ABANDONED"
+        | null;
+    }
+  | {
+      ok: false;
+      reason:
+        | "unauthenticated"
+        | "not-found"
+        | "inactive"
+        | "invalid"
+        | "unavailable";
+    };
+
+export async function sendInterviewMessage(
+  idToken: string,
+  sessionId: string,
+  content: string
+): Promise<SendInterviewMessageResult> {
+  const base = backendUrl();
+
+  if (!base) {
+    console.error("BACKEND_URL is not configured.");
+    return {
+      ok: false,
+      reason: "unavailable",
+    };
+  }
+
+  try {
+    const response = await fetch(
+      `${base}/interviews/${encodeURIComponent(
+        sessionId
+      )}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          content,
+        }),
+        cache: "no-store",
+      }
+    );
+
+    if (response.status === 401 || response.status === 403) {
+      return {
+        ok: false,
+        reason: "unauthenticated",
+      };
+    }
+
+    if (response.status === 404) {
+      return {
+        ok: false,
+        reason: "not-found",
+      };
+    }
+
+    if (response.status === 409) {
+      return {
+        ok: false,
+        reason: "inactive",
+      };
+    }
+
+    if (response.status === 400) {
+      return {
+        ok: false,
+        reason: "invalid",
+      };
+    }
+
+    if (!response.ok) {
+      console.error(
+        `Sending interview response failed with status ${response.status}`
+      );
+
+      return {
+        ok: false,
+        reason: "unavailable",
+      };
+    }
+
+    const body = (await response
+      .json()
+      .catch(() => null)) as
+      | {
+          messages?: unknown;
+          completed?: unknown;
+          completionReason?: unknown;
+        }
+      | null;
+
+    if (!body || !Array.isArray(body.messages)) {
+      console.error(
+        "Sending interview response returned an unexpected response body."
+      );
+
+      return {
+        ok: false,
+        reason: "unavailable",
+      };
+    }
+
+    const messages = body.messages
+      .map(parseMessage)
+      .filter(
+        (
+          message: InterviewMessage | null
+        ): message is InterviewMessage =>
+          message !== null
+      );
+
+    if (messages.length !== body.messages.length) {
+      console.error(
+        "Sending interview response returned malformed messages."
+      );
+
+      return {
+        ok: false,
+        reason: "unavailable",
+      };
+    }
+
+    return {
+      ok: true,
+      messages,
+      completed: body.completed === true,
+      completionReason:
+        body.completionReason === "TIME_LIMIT" ||
+        body.completionReason === "USER_ENDED" ||
+        body.completionReason === "ABANDONED"
+          ? body.completionReason
+          : null,
+    };
+  } catch (error) {
+    console.error(
+      "Sending interview response failed:",
+      error
+    );
+
+    return {
+      ok: false,
+      reason: "unavailable",
+    };
+  }
+}
+
+export type CompleteInterviewResult =
+  | {
+      ok: true;
+      status: "COMPLETED" | "ABANDONED";
+      completionReason:
+        | "USER_ENDED"
+        | "TIME_LIMIT"
+        | "ABANDONED"
+        | null;
+      messages: InterviewMessage[];
+    }
+  | {
+      ok: false;
+      reason:
+        | "unauthenticated"
+        | "not-found"
+        | "inactive"
+        | "unavailable";
+    };
+
+export async function completeInterviewSession(
+  idToken: string,
+  sessionId: string,
+  reason:
+    | "USER_ENDED"
+    | "TIME_LIMIT"
+    | "ABANDONED" = "USER_ENDED"
+): Promise<CompleteInterviewResult> {
+  const base = backendUrl();
+
+  if (!base) {
+    return {
+      ok: false,
+      reason: "unavailable",
+    };
+  }
+
+  try {
+    const response = await fetch(
+      `${base}/interviews/${encodeURIComponent(
+        sessionId
+      )}/complete`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          reason,
+        }),
+        cache: "no-store",
+      }
+    );
+
+    if (
+      response.status === 401 ||
+      response.status === 403
+    ) {
+      return {
+        ok: false,
+        reason: "unauthenticated",
+      };
+    }
+
+    if (response.status === 404) {
+      return {
+        ok: false,
+        reason: "not-found",
+      };
+    }
+
+    if (response.status === 409) {
+      return {
+        ok: false,
+        reason: "inactive",
+      };
+    }
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        reason: "unavailable",
+      };
+    }
+
+    const body = await response
+      .json()
+      .catch(() => null);
+
+    const session = body?.session;
+
+    if (!session) {
+      return {
+        ok: false,
+        reason: "unavailable",
+      };
+    }
+
+    const rawMessages =
+      Array.isArray(body?.messages)
+        ? body.messages
+        : [];
+
+    const messages = rawMessages
+      .map(parseMessage)
+      .filter(
+        (
+          message: InterviewMessage | null
+        ): message is InterviewMessage =>
+          message !== null
+      );
+
+    return {
+      ok: true,
+      status:
+        session.status === "ABANDONED"
+          ? "ABANDONED"
+          : "COMPLETED",
+      completionReason:
+        session.completionReason === "USER_ENDED" ||
+        session.completionReason === "TIME_LIMIT" ||
+        session.completionReason === "ABANDONED"
+          ? session.completionReason
+          : null,
+      messages,
+    };
+  } catch (error) {
+    console.error(
+      "Completing interview failed:",
+      error
+    );
+
+    return {
+      ok: false,
+      reason: "unavailable",
+    };
+  }
+}
+
+export type InterviewHistoryItem = {
+  id: string;
+  title: string;
+  mode: InterviewMode;
+  industry: string | null;
+  role: string | null;
+  status: "ACTIVE" | "COMPLETED" | "ABANDONED";
+  durationMinutes: number;
+  startedAt: string;
+  completedAt: string | null;
+  completionReason:
+    | "USER_ENDED"
+    | "TIME_LIMIT"
+    | "ABANDONED"
+    | null;
+};
+
+export type InterviewHistoryResult =
+  | {
+      ok: true;
+      sessions: InterviewHistoryItem[];
+    }
+  | {
+      ok: false;
+      reason:
+        | "unauthenticated"
+        | "unavailable";
+    };
+
+export async function loadInterviewHistory(
+  idToken: string
+): Promise<InterviewHistoryResult> {
+  const base = backendUrl();
+
+  if (!base) {
+    return {
+      ok: false,
+      reason: "unavailable",
+    };
+  }
+
+  try {
+    const response = await fetch(
+      `${base}/interviews`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
+        cache: "no-store",
+      }
+    );
+
+    if (
+      response.status === 401 ||
+      response.status === 403
+    ) {
+      return {
+        ok: false,
+        reason: "unauthenticated",
+      };
+    }
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        reason: "unavailable",
+      };
+    }
+
+    const body = await response
+      .json()
+      .catch(() => null);
+
+    const sessions =
+      Array.isArray(body?.sessions)
+        ? body.sessions
+        : [];
+
+    return {
+      ok: true,
+      sessions,
+    };
+  } catch (error) {
+    console.error(
+      "Loading interview history failed:",
+      error
+    );
+
+    return {
+      ok: false,
+      reason: "unavailable",
+    };
   }
 }

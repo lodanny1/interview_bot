@@ -69,6 +69,7 @@ export interface StartInterviewInput {
   roleLevel?: string;
   experienceLevel?: string;
   jobDescription?: string;
+  resumeId?: string;
 }
 
 // An in-progress session. Different from InterviewSession above, which is a
@@ -77,6 +78,15 @@ export interface ActiveInterviewSession {
   id: string;
   title: string;
   mode: InterviewMode;
+  status: "ACTIVE" | "COMPLETED" | "ABANDONED";
+  startedAt: string;
+  endsAt: string;
+  durationMinutes: number;
+  completionReason:
+    | "USER_ENDED"
+    | "TIME_LIMIT"
+    | "ABANDONED"
+    | null;
   // Everything said so far. Right after start this holds the first question;
   // when a session is reloaded it holds the transcript the backend has stored.
   messages: InterviewMessage[];

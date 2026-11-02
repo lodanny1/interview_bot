@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -194,7 +194,12 @@ function FormBanner({ state }: { state: InterviewSetupFormState }) {
 
 export default function InterviewSetupForm() {
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [resumes, setResumes] = useState<
+    { id: string; fileName: string }[]
+  >([]);
+
+  const [selectedResumeId, setSelectedResumeId] = useState("");
+  const [resumesLoading, setResumesLoading] = useState(true);
   const [state, formAction, isPending] = useActionState(
     startInterviewAction,
     INITIAL_INTERVIEW_SETUP_STATE
@@ -209,22 +214,75 @@ export default function InterviewSetupForm() {
   const [experience, setExperience] = useState("");
   const [focus, setFocus] = useState("");
   const [mode, setMode] = useState<InterviewMode>("voice");
-  const [file, setFile] = useState<File | null>(null);
-  const [dragging, setDragging] = useState(false);
   const [jobDescription, setJobDescription] = useState("");
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    const dropped = e.dataTransfer.files?.[0];
-    if (dropped) setFile(dropped);
-  };
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSavedResumes() {
+      try {
+        const response = await fetch("/api/resume", {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const body = await response.json();
+
+        if (!cancelled && Array.isArray(body?.resumes)) {
+          setResumes(
+            body.resumes
+              .filter(
+                (resume: unknown): resume is {
+                  id: string;
+                  fileName: string;
+                } =>
+                  Boolean(
+                    resume &&
+                      typeof resume === "object" &&
+                      typeof (resume as { id?: unknown }).id === "string" &&
+                      typeof (resume as { fileName?: unknown }).fileName === "string"
+                  )
+              )
+              .map(
+                (resume: {
+                  id: string;
+                  fileName: string;
+                }) => ({
+                  id: resume.id,
+                  fileName: resume.fileName,
+                })
+              )
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setResumesLoading(false);
+        }
+      }
+    }
+
+    loadSavedResumes();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
 
   return (
     <form action={formAction} noValidate className="w-full text-primary">
       {/* Values held in buttons rather than inputs */}
       <input type="hidden" name="goal" value={goal} />
       <input type="hidden" name="mode" value={mode} />
+      <input
+        type="hidden"
+        name="resumeId"
+        value={selectedResumeId}
+      />
 
       {/* Top bar */}
       <header className="flex items-center justify-between border-b border-line-subtle bg-card px-6 py-4">
@@ -407,41 +465,58 @@ export default function InterviewSetupForm() {
             based on your profile.
           </p>
 
-          {/* NOTE: the chosen file is NOT sent with the session yet (out of scope for Issue #51).
-              It's kept in local state only, so the UI behaves as before. */}
-          <div
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragging(true);
-            }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={handleDrop}
-            className={cn(
-              "flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors",
-              dragging ? "border-cta bg-tinted" : "border-line-strong bg-card"
-            )}
-          >
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-tinted">
-              <FileUp className="h-7 w-7 text-cta" aria-hidden />
+          <div>
+            <FieldLabel htmlFor="resumeId">
+              Saved Resume
+            </FieldLabel>
+
+            <div className="relative">
+              <select
+                id="resumeId"
+                value={selectedResumeId}
+                onChange={(e) =>
+                  setSelectedResumeId(e.target.value)
+                }
+                disabled={resumesLoading}
+                className={cn(
+                  fieldBase,
+                  fieldBorder(false),
+                  "appearance-none pr-10"
+                )}
+              >
+                <option value="">
+                  {resumesLoading
+                    ? "Loading resumes..."
+                    : "No resume selected"}
+                </option>
+
+                {resumes.map((resume) => (
+                  <option
+                    key={resume.id}
+                    value={resume.id}
+                  >
+                    {resume.fileName}
+                  </option>
+                ))}
+              </select>
+
+              <ChevronDown
+                className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-tertiary"
+                aria-hidden
+              />
             </div>
-            <p className="mt-4 text-lg text-primary">
-              {file ? file.name : "Drag and drop file here"}
-            </p>
-            <p className="mt-1 text-sm text-secondary">Supports PDF, DOCX up to 5MB</p>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="mt-5 rounded-md border border-cta bg-card px-5 py-2 text-sm font-medium text-link transition-colors hover:bg-hover"
-            >
-              Browse Files
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.docx"
-              className="hidden"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            />
+
+            {!resumesLoading && resumes.length === 0 && (
+              <p className="mt-2 text-sm text-secondary">
+                No saved resumes yet. Upload one from your resume page first.
+              </p>
+            )}
+
+            {!resumesLoading && resumes.length > 0 && (
+              <p className="mt-2 text-sm text-secondary">
+                Selecting a saved resume lets the interviewer generate questions grounded in your experience.
+              </p>
+            )}
           </div>
 
           <div className="my-6 flex items-center gap-4">

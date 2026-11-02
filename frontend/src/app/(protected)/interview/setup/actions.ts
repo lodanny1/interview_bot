@@ -35,6 +35,7 @@ export async function startInterviewAction(
     focusArea: formData.get("focusArea"),
     mode: formData.get("mode"),
     jobDescription: formData.get("jobDescription"),
+    resumeId: formData.get("resumeId"),
   });
   if (!validation.ok) {
     return { fieldErrors: validation.fieldErrors };

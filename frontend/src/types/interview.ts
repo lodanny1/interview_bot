@@ -78,6 +78,11 @@ export interface ActiveInterviewSession {
   id: string;
   title: string;
   mode: InterviewMode;
+  focusArea: string;
+  industry?: string;
+  roleLevel?: string;
+  experienceLevel?: string;
+  totalQuestions?: number;
   status: "ACTIVE" | "COMPLETED" | "ABANDONED";
   startedAt: string;
   endsAt: string;

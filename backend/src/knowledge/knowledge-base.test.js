@@ -109,12 +109,16 @@ test("content loads relative to the module, so the Docker image finds it", () =>
 /* ------------------------------- Versioning ------------------------------- */
 
 test("the version ignores line endings, a BOM and file order", () => {
-  const files = readCommittedFiles();
+  // Start from LF text: with core.autocrlf the checkout itself may be CRLF.
+  const files = readCommittedFiles().map((file) => ({ ...file, text: file.text.replace(/\r\n/g, "\n") }));
   const lf = buildKnowledgeBase(files, { today: TODAY });
   const crlf = buildKnowledgeBase(
-    files.map((file) => ({ ...file, text: `﻿${file.text.replace(/\n/g, "\r\n")}` })),
+    files.map((file) => ({ ...file, text: `${String.fromCharCode(0xfeff)}${file.text.replace(/\n/g, "\r\n")}` })),
     { today: TODAY }
   );
+
+  // The checkout as it is on disk gets the same version too.
+  assert.equal(buildKnowledgeBase(readCommittedFiles(), { today: TODAY }).version, lf.version);
   const reversed = buildKnowledgeBase([...files].reverse(), { today: TODAY });
 
   assert.equal(crlf.version, lf.version);
@@ -196,6 +200,11 @@ const INVALID_CASES = [
   ["duplicate_alias", (text) => text.replace("alias: Acme Robotics", "alias: ACME, Inc.")],
   ["text_before_first_section", (text) => text.replace("---\n\n## How", "---\n\nIntro text.\n\n## How")],
   ["field_not_allowed", (text) => text.replace("industry: tech", "keywords: sql")],
+  ["invalid_roles", (text) => text.replace("levels: senior, lead", "levels: senior, lead\nroles: Software Engineering")],
+  // names must be written in normalized form ("acme robotics").
+  ["invalid_names", (text) => text.replace("levels: senior, lead", "levels: senior, lead\nnames: Acme Robotics")],
+  ["unknown_name", (text) => text.replace("levels: senior, lead", "levels: senior, lead\nnames: acme labs")],
+  ["scoped_overview", (text) => text.replace("{#overview}\n", "{#overview}\nnames: acme robotics\n")],
 ];
 
 for (const [code, mutate] of INVALID_CASES) {
@@ -219,10 +228,62 @@ test("validation enforces size limits on files and section counts", () => {
   const many = documentFile({
     kind: "framework",
     slug: "mixed",
-    sections: Array.from({ length: 9 }, (_, index) => ({ slug: index === 0 ? "overview" : `part-${index}` })),
+    sections: Array.from({ length: 13 }, (_, index) => ({ slug: index === 0 ? "overview" : `part-${index}` })),
   });
 
   assert.ok(errorCodes(many.path, many.text).includes("too_many_sections"));
+});
+
+test("section scoping fields are parsed and limited to the kinds that use them", () => {
+  const scoped = VALID_COMPANY.replace(
+    "levels: senior, lead",
+    "levels: senior, lead\nroles: software-engineering, data-analytics\nnames: acme robotics"
+  );
+  const { document } = parseDocument("companies/acme.md", scoped, { today: TODAY });
+  const senior = document.sections[1];
+
+  assert.deepEqual(senior.roles, ["software-engineering", "data-analytics"]);
+  assert.deepEqual(senior.names, ["acme robotics"]);
+  assert.deepEqual(document.sections[0].roles, []);
+
+  // "names:" only makes sense in company files.
+  const framework = documentFile({
+    kind: "framework",
+    slug: "mixed",
+    sections: [{ slug: "overview" }, { slug: "extra", names: "acme" }],
+  });
+
+  assert.ok(errorCodes(framework.path, framework.text).includes("field_not_allowed"));
+});
+
+test("a section scoped to a role without a role file is an error", () => {
+  const company = companyFile({
+    slug: "acme",
+    title: "Acme",
+    sections: [
+      { slug: "overview", sources: ["https://example.com/a"], text: "Acme overview with enough words to be valid here." },
+      {
+        slug: "nurses",
+        roles: "nursing",
+        sources: ["https://example.com/b"],
+        text: "Acme nurse interviews with enough words to be valid here.",
+      },
+    ],
+  });
+  const knowledgeBase = buildKnowledgeBase([...frameworkFiles(), company], { today: TODAY });
+
+  assert.deepEqual(
+    knowledgeBase.errors.map((error) => [error.file, error.code]),
+    [["companies/acme.md", "unknown_role_reference"]]
+  );
+  assert.equal(knowledgeBase.status, "degraded");
+
+  const withRole = buildKnowledgeBase(
+    [...frameworkFiles(), company, roleFile({ slug: "nursing", aliases: ["Registered Nurse"] })],
+    { today: TODAY }
+  );
+
+  assert.deepEqual(withRole.errors, []);
 });
 
 test("role files need an alias and a section for every role level", () => {

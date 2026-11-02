@@ -7,6 +7,8 @@ alias: Data Scientist
 alias: Data Science
 alias: Business Intelligence Analyst
 alias: Business Intelligence Developer
+alias: Business Intelligence Engineer
+alias: BIE
 alias: BI Analyst
 alias: BI Developer
 alias: Reporting Analyst

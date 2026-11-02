@@ -160,21 +160,67 @@ test("buildInterviewContext returns the effective input and the retrieval for it
   assert.equal(knowledge.coverage.company.input, "Capital One");
   assert.equal(knowledge.coverage.company.documentId, "company.capital-one");
   assert.equal(knowledge.coverage.role.documentId, "role.data-analytics");
-  assert.equal(knowledge.roleLevel, "mid");
+  assert.deepEqual(knowledge.filters, {
+    roleLevel: "mid",
+    role: "data-analytics",
+    companyName: "capital one",
+  });
   assert.match(knowledge.context, /^<knowledge_base version="kb-[0-9a-f]{12}">/);
   assert.deepEqual(Object.keys(knowledge).sort(), [
     "budget",
     "context",
     "coverage",
     "documents",
+    "filters",
     "knowledgeStatus",
     "retrieverVersion",
-    "roleLevel",
     "sections",
     "sources",
     "status",
     "version",
   ]);
+});
+
+test("non-string setup values are dropped and noted as invalid", () => {
+  const input = resolveInterviewInput({
+    setup: { goal: 5, focusArea: ["technical"], roleLevel: {}, industry: true, jobDescription: { text: "x" } },
+  });
+
+  assert.equal(input.goal, "general");
+  assert.equal(input.jobDescription, null);
+  assert.deepEqual(input.notes, [
+    "invalid_goal",
+    "invalid_job_description",
+    "invalid_industry",
+    "invalid_role_level",
+    "invalid_focus_area",
+  ]);
+});
+
+test("oversized text is cut to the limit and noted", () => {
+  const input = resolveInterviewInput({
+    setup: { goal: "specific", focusArea: "technical", jobDescription: `  ${"word ".repeat(2500)}` },
+    targetJob: { job_title: "T".repeat(150), company: "C".repeat(130), description: "Saved posting." },
+  });
+
+  assert.equal(input.jobTitle.length, 120);
+  assert.equal(input.company.length, 120);
+  assert.ok(input.jobDescription.length <= 10000);
+  assert.deepEqual(input.notes, [
+    "job_title_truncated",
+    "company_truncated",
+    "job_description_truncated",
+    "setup_description_replaces_saved",
+  ]);
+});
+
+test("notes about an ignored target job are not reported", () => {
+  const input = resolveInterviewInput({
+    setup: { goal: "general", focusArea: "technical" },
+    targetJob: { job_title: "T".repeat(150), company: "Acme", description: "Saved posting." },
+  });
+
+  assert.deepEqual(input.notes, ["target_job_ignored"]);
 });
 
 test("a defaulted focus area is reported as a default, not a user choice", () => {

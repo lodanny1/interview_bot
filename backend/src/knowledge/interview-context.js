@@ -23,22 +23,38 @@ const LIMITS = {
   jobDescription: 10000,
 };
 
-function cleanText(value, maxChars) {
-  if (typeof value !== "string") return null;
+function isMissing(value) {
+  return value === undefined || value === null || (typeof value === "string" && !value.trim());
+}
+
+// Free text: trimmed, blank means not given, longer than maxChars is cut and
+// noted. A non-string value is dropped and noted as invalid.
+function cleanText(value, maxChars, field, notes) {
+  if (isMissing(value)) return null;
+
+  if (typeof value !== "string") {
+    notes.push(`invalid_${field}`);
+    return null;
+  }
 
   const text = value.trim();
 
-  return text ? text.slice(0, maxChars) : null;
+  if (text.length <= maxChars) return text;
+
+  notes.push(`${field}_truncated`);
+
+  return text.slice(0, maxChars).trim();
 }
 
 // Empty is "not given" (null, no note); anything else must be a known value.
-function cleanChoice(value, allowed, invalidNote, notes) {
-  const text = cleanText(value, 40);
+function cleanChoice(value, allowed, field, notes) {
+  if (isMissing(value)) return null;
 
-  if (!text) return null;
+  const text = typeof value === "string" ? value.trim() : null;
+
   if (allowed.includes(text)) return text;
 
-  notes.push(invalidNote);
+  notes.push(`invalid_${field}`);
 
   return null;
 }
@@ -61,12 +77,14 @@ function resolveInterviewInput({ setup, targetJob } = {}) {
   const job = targetJob && typeof targetJob === "object" ? targetJob : null;
   const notes = [];
 
-  const goalText = cleanText(raw.goal, 40);
-  const requestedGoal = PRACTICE_GOALS.includes(goalText) ? goalText : null;
+  const requestedGoal = cleanChoice(raw.goal, PRACTICE_GOALS, "goal", notes);
 
-  if (!requestedGoal) notes.push(goalText ? "invalid_goal" : "missing_goal");
+  if (isMissing(raw.goal)) notes.push("missing_goal");
 
-  const savedTitle = job ? cleanText(job.job_title, LIMITS.jobTitle) : null;
+  // Validated rows are at most 120 characters, so these limits only matter
+  // for bad input.
+  const jobNotes = [];
+  const savedTitle = job ? cleanText(job.job_title, LIMITS.jobTitle, "job_title", jobNotes) : null;
   let goal = requestedGoal || "general";
 
   if (goal === "specific" && !savedTitle) {
@@ -77,9 +95,15 @@ function resolveInterviewInput({ setup, targetJob } = {}) {
   }
 
   const usesTargetJob = goal === "specific";
-  const company = usesTargetJob ? cleanText(job.company, LIMITS.company) : null;
-  const setupDescription = cleanText(raw.jobDescription, LIMITS.jobDescription);
-  const savedDescription = usesTargetJob ? cleanText(job.description, LIMITS.jobDescription) : null;
+
+  // Notes about the saved job only matter when it is used.
+  if (usesTargetJob) notes.push(...jobNotes);
+
+  const company = usesTargetJob ? cleanText(job.company, LIMITS.company, "company", notes) : null;
+  const setupDescription = cleanText(raw.jobDescription, LIMITS.jobDescription, "job_description", notes);
+  const savedDescription = usesTargetJob
+    ? cleanText(job.description, LIMITS.jobDescription, "job_description", notes)
+    : null;
 
   let jobDescription = null;
   let jobDescriptionSource = null;
@@ -96,9 +120,9 @@ function resolveInterviewInput({ setup, targetJob } = {}) {
     jobDescriptionSource = "target_job";
   }
 
-  const industry = cleanChoice(raw.industry, INDUSTRIES, "invalid_industry", notes);
-  const roleLevel = cleanChoice(raw.roleLevel, ROLE_LEVELS, "invalid_role_level", notes);
-  const chosenFocus = cleanChoice(raw.focusArea, FOCUS_AREAS, "invalid_focus_area", notes);
+  const industry = cleanChoice(raw.industry, INDUSTRIES, "industry", notes);
+  const roleLevel = cleanChoice(raw.roleLevel, ROLE_LEVELS, "role_level", notes);
+  const chosenFocus = cleanChoice(raw.focusArea, FOCUS_AREAS, "focus_area", notes);
 
   return {
     requestedGoal,

@@ -11,7 +11,14 @@
     "financialAnalyst": "The Financial Analyst will build monthly forecasts and budget variance reports, write SQL queries to pull data from the general ledger, maintain Excel models and Tableau dashboards for leadership, and analyze key performance metrics to support business decisions.",
     "businessAnalyst": "The Business Analyst will gather requirements from business stakeholders, document current and future processes, analyze data in Excel and SQL to find opportunities, and present recommendations to leadership.",
     "generic": "We are seeking a motivated team member who thrives in a fast-paced environment. The ideal candidate has excellent communication skills, strong attention to detail, and the ability to manage multiple priorities. Responsibilities include supporting day-to-day operations, collaborating with cross-functional teams, and contributing to process improvements. A bachelor's degree is preferred.",
-    "groupPm": "Lead a team of product managers responsible for our payments products. Set product strategy and the roadmap, align executives across business units, and coach and hire product managers."
+    "groupPm": "Lead a team of product managers responsible for our payments products. Set product strategy and the roadmap, align executives across business units, and coach and hire product managers.",
+    "marketingAnalytics": "The Marketing Manager will plan campaigns, write SQL queries to pull campaign data, maintain Tableau dashboards and Excel reports, run A/B tests on email and landing pages, and analyze conversion metrics and statistics to decide where to spend the budget.",
+    "newGradNurse": "New graduate Registered Nurse for our medical-surgical unit. Provide safe, patient-centered care, administer medications, monitor vital signs, document in the EHR, and communicate changes in condition to the charge nurse and providers. Requires a current RN license and BLS certification.",
+    "consultant": "As a Consultant you will work on client engagements, analyze business problems, build recommendations and present findings in slides and workshops. Strong problem solving, communication and teamwork skills are required.",
+    "securityIntern": "Security Engineer Intern: help monitor alerts in our SIEM, investigate phishing reports, review firewall rules and run vulnerability scans with the security team. Coursework in networking, Linux and cybersecurity is preferred.",
+    "dataScientist": "Data Scientist: build statistical models and run experiments to improve credit decisions, write SQL and Python, and present insights and recommendations to business partners.",
+    "personalBanker": "Personal Banker: help customers open accounts, recommend products that fit their needs, resolve service issues, and build long-term relationships in a busy branch.",
+    "uxDesigner": "UX Designer: run usability testing, turn research into wireframes and Figma prototypes, contribute to our design system, and partner with product managers and engineers to ship accessible experiences."
   },
   "cases": [
     {
@@ -77,12 +84,34 @@
           "framework.behavioral#star-method"
         ],
         "excludeSections": [
-          "company.amazon#senior-technical-screens",
+          "company.amazon#sde-ii",
+          "company.amazon#sde-iii",
+          "company.amazon#sdm",
+          "company.amazon#aws",
+          "company.amazon#product-manager",
+          "company.amazon#student-data",
+          "company.amazon#student-technical",
           "role.software-engineering#mid-level",
           "role.software-engineering#senior-lead"
         ],
         "includeSources": ["https://www.amazon.jobs/en/principles"],
-        "excludeSources": ["https://amazon.jobs/content/en/how-we-hire/sdm-interview-prep"]
+        "excludeSources": [
+          "https://amazon.jobs/content/en/how-we-hire/sdm-interview-prep",
+          "https://amazon.jobs/content/en/how-we-hire/sde-iii-interview-prep",
+          "https://aws.amazon.com/careers/how-we-hire/"
+        ]
+      }
+    },
+    {
+      "id": "amazon-intern-gets-student-sde-notes",
+      "about": "The Amazon SDE intern sees the student SDE notes, which only apply to that role and level.",
+      "setup": { "goal": "specific", "focusArea": "technical", "roleLevel": "intern" },
+      "targetJob": { "job_title": "Software Development Engineer Intern", "company": "Amazon", "description": "@sweIntern" },
+      "expect": {
+        "status": "ok",
+        "includeSections": ["company.amazon#overview", "company.amazon#student-sde", "role.software-engineering#coding-exercises"],
+        "excludeSections": ["company.amazon#sde-ii", "company.amazon#aws", "company.amazon#student-data"],
+        "includeSources": ["https://amazon.jobs/content/en/how-we-hire/university/sde-oa"]
       }
     },
     {
@@ -96,17 +125,85 @@
         "documentIds": { "company": "company.amazon", "role": "role.software-engineering", "framework": "framework.system-design", "industry": "industry.tech" },
         "matchedBy": { "industry": "company" },
         "includeSections": [
-          "company.amazon#senior-technical-screens",
+          "company.amazon#sde-iii",
+          "company.amazon#aws",
           "role.software-engineering#senior-lead",
           "framework.system-design#senior-lead"
         ],
         "excludeSections": [
+          "company.amazon#sde-ii",
+          "company.amazon#sdm",
+          "company.amazon#student-sde",
           "role.software-engineering#early-career",
           "role.software-engineering#mid-level",
           "framework.system-design#early-career",
           "framework.system-design#mid-level"
         ],
-        "includeSources": ["https://amazon.jobs/content/en/how-we-hire/sdm-interview-prep"]
+        "includeSources": [
+          "https://amazon.jobs/content/en/how-we-hire/sde-iii-interview-prep",
+          "https://aws.amazon.com/careers/how-we-hire/"
+        ],
+        "excludeSources": ["https://amazon.jobs/content/en/how-we-hire/sdm-interview-prep"]
+      }
+    },
+    {
+      "id": "amazon-product-manager-role-scoping",
+      "about": "Amazon notes for one role don't reach another: a product manager gets the PM notes, not SDE or BIE notes.",
+      "setup": { "goal": "specific", "focusArea": "mixed", "roleLevel": "mid" },
+      "targetJob": { "job_title": "Product Manager", "company": "Amazon", "description": "@apmCapitalOne" },
+      "expect": {
+        "status": "ok",
+        "documentIds": { "company": "company.amazon", "role": "role.product-management" },
+        "includeSections": ["company.amazon#product-manager"],
+        "excludeSections": ["company.amazon#sde-ii", "company.amazon#bie", "company.amazon#ux", "company.amazon#student-sde", "company.amazon#aws"]
+      }
+    },
+    {
+      "id": "amazon-ux-designer",
+      "about": "UX designer at Amazon gets the UX loop notes.",
+      "setup": { "goal": "specific", "focusArea": "behavioral", "roleLevel": "mid" },
+      "targetJob": { "job_title": "UX Designer", "company": "Amazon", "description": "@uxDesigner" },
+      "expect": {
+        "documentIds": { "role": "role.ux-design" },
+        "includeSections": ["company.amazon#ux", "role.ux-design#mid-level"],
+        "excludeSections": ["company.amazon#product-manager", "company.amazon#sde-ii"]
+      }
+    },
+    {
+      "id": "amazon-security-intern",
+      "about": "A security engineer intern gets Amazon's student technical-roles notes, not the student SDE notes.",
+      "setup": { "goal": "specific", "focusArea": "technical", "roleLevel": "intern" },
+      "targetJob": { "job_title": "Security Engineer Intern", "company": "Amazon", "description": "@securityIntern" },
+      "expect": {
+        "status": "ok",
+        "documentIds": { "role": "role.it-cybersecurity" },
+        "matchedBy": { "role": "title_alias" },
+        "includeSections": ["company.amazon#student-technical", "role.it-cybersecurity#early-career"],
+        "excludeSections": ["company.amazon#student-sde", "company.amazon#student-data"]
+      }
+    },
+    {
+      "id": "amazon-data-engineer-is-not-data-analyst",
+      "about": "Data engineer is not treated as a data analyst: the role stays unknown and data-analytics notes are left out.",
+      "setup": { "goal": "specific", "focusArea": "technical", "roleLevel": "intern" },
+      "targetJob": { "job_title": "Data Engineer Intern", "company": "Amazon", "description": "@sweBackend" },
+      "expect": {
+        "status": "partial",
+        "coverage": { "company": "matched", "role": "not_found" },
+        "excludeSections": ["company.amazon#student-data", "company.amazon#student-sde", "company.amazon#bie"],
+        "excludeKinds": ["role"]
+      }
+    },
+    {
+      "id": "aws-name-scoping",
+      "about": "'AWS' matches Amazon through a reviewed alias and adds the AWS-only notes.",
+      "setup": { "goal": "specific", "focusArea": "behavioral", "roleLevel": "mid" },
+      "targetJob": { "job_title": "Software Development Engineer", "company": "AWS", "description": "@sweBackend" },
+      "expect": {
+        "status": "ok",
+        "documentIds": { "company": "company.amazon" },
+        "includeSections": ["company.amazon#aws", "company.amazon#sde-ii"],
+        "excludeSections": ["company.amazon#sde-iii", "company.amazon#student-sde"]
       }
     },
     {
@@ -240,10 +337,10 @@
       }
     },
     {
-      "id": "financial-analyst-description-does-not-decide",
+      "id": "uncovered-title-description-does-not-decide",
       "about": "An uncovered title stays unknown even when the description is full of data keywords.",
-      "setup": { "goal": "specific", "focusArea": "technical", "industry": "finance", "roleLevel": "entry" },
-      "targetJob": { "job_title": "Financial Analyst", "company": null, "description": "@financialAnalyst" },
+      "setup": { "goal": "specific", "focusArea": "technical", "industry": "tech", "roleLevel": "entry" },
+      "targetJob": { "job_title": "Marketing Manager", "company": null, "description": "@marketingAnalytics" },
       "expect": {
         "status": "partial",
         "coverage": { "role": "not_found", "industry": "matched" },
@@ -252,16 +349,41 @@
       }
     },
     {
+      "id": "financial-analyst-title-beats-data-keywords",
+      "about": "'Financial Analyst' is business and financial analysis even though its description reads like a data role.",
+      "setup": { "goal": "specific", "focusArea": "technical", "industry": "finance", "roleLevel": "entry" },
+      "targetJob": { "job_title": "Financial Analyst", "company": null, "description": "@financialAnalyst" },
+      "expect": {
+        "status": "ok",
+        "documentIds": { "role": "role.business-analysis" },
+        "matchedBy": { "role": "title_alias" },
+        "includeSections": ["role.business-analysis#early-career"],
+        "excludeDocuments": ["role.data-analytics"]
+      }
+    },
+    {
       "id": "business-analyst-at-capital-one",
-      "about": "Covered company, uncovered role: company content without a guessed role.",
+      "about": "Capital One business analyst: general, case and business-analyst notes, but not the data-science note.",
       "setup": { "goal": "specific", "focusArea": "behavioral", "roleLevel": "entry" },
       "targetJob": { "job_title": "Business Analyst", "company": "Capital One", "description": "@businessAnalyst" },
       "expect": {
-        "status": "partial",
-        "coverage": { "company": "matched", "role": "not_found", "industry": "matched" },
-        "documentIds": { "company": "company.capital-one" },
-        "includeSections": ["company.capital-one#overview"],
-        "excludeKinds": ["role"]
+        "status": "ok",
+        "coverage": { "company": "matched", "role": "matched", "industry": "matched" },
+        "documentIds": { "company": "company.capital-one", "role": "role.business-analysis", "industry": "industry.finance" },
+        "includeSections": ["company.capital-one#overview", "company.capital-one#case-interviews", "company.capital-one#business-analyst"],
+        "excludeSections": ["company.capital-one#data-science"]
+      }
+    },
+    {
+      "id": "capital-one-data-scientist",
+      "about": "Capital One data scientist gets the data-science note, not the case or business-analyst notes.",
+      "setup": { "goal": "specific", "focusArea": "technical", "roleLevel": "mid" },
+      "targetJob": { "job_title": "Data Scientist", "company": "Capital One", "description": "@dataScientist" },
+      "expect": {
+        "status": "ok",
+        "documentIds": { "role": "role.data-analytics" },
+        "includeSections": ["company.capital-one#data-science"],
+        "excludeSections": ["company.capital-one#case-interviews", "company.capital-one#business-analyst"]
       }
     },
     {
@@ -357,15 +479,154 @@
       }
     },
     {
-      "id": "uncovered-industry-healthcare",
-      "about": "A valid industry without a document is reported as not found.",
-      "setup": { "goal": "general", "focusArea": "technical", "industry": "healthcare" },
+      "id": "general-behavioral-healthcare-industry",
+      "about": "General behavioral practice with only an industry chosen: framework and industry notes, nothing company- or role-specific.",
+      "setup": { "goal": "general", "focusArea": "behavioral", "industry": "healthcare" },
       "targetJob": null,
       "expect": {
+        "status": "ok",
+        "coverage": { "company": "not_given", "role": "not_given", "industry": "matched", "framework": "matched" },
+        "documentIds": { "industry": "industry.healthcare", "framework": "framework.behavioral" },
+        "includeSections": ["framework.behavioral#overview", "framework.behavioral#star-method", "industry.healthcare#overview"],
+        "excludeKinds": ["company", "role"]
+      }
+    },
+    {
+      "id": "kaiser-new-grad-nurse",
+      "about": "Covered healthcare company and role at entry level; industry comes from the company.",
+      "setup": { "goal": "specific", "focusArea": "behavioral", "roleLevel": "entry" },
+      "targetJob": { "job_title": "New Graduate Registered Nurse", "company": "Kaiser Permanente", "description": "@newGradNurse" },
+      "expect": {
+        "status": "ok",
+        "documentIds": { "company": "company.kaiser-permanente", "role": "role.healthcare", "industry": "industry.healthcare" },
+        "matchedBy": { "industry": "company" },
+        "includeSections": ["company.kaiser-permanente#overview", "role.healthcare#early-career"],
+        "excludeSections": ["role.healthcare#senior-lead"]
+      }
+    },
+    {
+      "id": "cedars-sinai-not-covered",
+      "about": "A healthcare employer without verified notes: role and industry still help, no company content.",
+      "setup": { "goal": "specific", "focusArea": "behavioral", "industry": "healthcare", "roleLevel": "entry" },
+      "targetJob": { "job_title": "Registered Nurse", "company": "Cedars-Sinai Medical Center", "description": "@newGradNurse" },
+      "expect": {
         "status": "partial",
-        "coverage": { "industry": "not_found", "framework": "matched" },
-        "reasons": { "industry": "no_matching_document" },
-        "excludeKinds": ["industry"]
+        "coverage": { "company": "not_found", "role": "matched", "industry": "matched" },
+        "documentIds": { "role": "role.healthcare", "industry": "industry.healthcare" },
+        "excludeKinds": ["company"]
+      }
+    },
+    {
+      "id": "microsoft-swe-intern",
+      "about": "Legal suffix removed ('Microsoft Corporation'); early-career and technical notes apply.",
+      "setup": { "goal": "specific", "focusArea": "technical", "roleLevel": "intern" },
+      "targetJob": { "job_title": "Software Engineer Intern", "company": "Microsoft Corporation", "description": "@sweIntern" },
+      "expect": {
+        "status": "ok",
+        "documentIds": { "company": "company.microsoft", "role": "role.software-engineering" },
+        "includeSections": ["company.microsoft#overview", "company.microsoft#early-career", "company.microsoft#technical"]
+      }
+    },
+    {
+      "id": "jpmorgan-experienced-engineer",
+      "about": "Experienced engineer at JPMorgan Chase gets the experienced-hiring stages.",
+      "setup": { "goal": "specific", "focusArea": "technical", "roleLevel": "mid" },
+      "targetJob": { "job_title": "Software Engineer III", "company": "JPMorgan Chase & Co.", "description": "@sweBackend" },
+      "expect": {
+        "status": "ok",
+        "documentIds": { "company": "company.jpmorgan-chase" },
+        "includeSections": ["company.jpmorgan-chase#experienced-software-engineers"]
+      }
+    },
+    {
+      "id": "jpmorgan-intern-excludes-experienced-hiring",
+      "about": "An intern at J.P. Morgan doesn't get the experienced-engineer process.",
+      "setup": { "goal": "specific", "focusArea": "technical", "roleLevel": "intern" },
+      "targetJob": { "job_title": "Software Engineer Intern", "company": "J.P. Morgan", "description": "@sweIntern" },
+      "expect": {
+        "documentIds": { "company": "company.jpmorgan-chase" },
+        "includeSections": ["company.jpmorgan-chase#overview"],
+        "excludeSections": ["company.jpmorgan-chase#experienced-software-engineers"]
+      }
+    },
+    {
+      "id": "wells-fargo-uncovered-role",
+      "about": "Covered company with an uncovered role: company notes without a guessed role.",
+      "setup": { "goal": "specific", "focusArea": "behavioral", "roleLevel": "entry" },
+      "targetJob": { "job_title": "Personal Banker", "company": "Wells Fargo & Company", "description": "@personalBanker" },
+      "expect": {
+        "status": "partial",
+        "coverage": { "company": "matched", "role": "not_found", "industry": "matched" },
+        "documentIds": { "company": "company.wells-fargo", "industry": "industry.finance" },
+        "includeSections": ["company.wells-fargo#overview", "company.wells-fargo#behavioral"],
+        "excludeKinds": ["role"]
+      }
+    },
+    {
+      "id": "deloitte-entry-consultant",
+      "about": "Entry-level consultant at Deloitte gets the case and scenario notes.",
+      "setup": { "goal": "specific", "focusArea": "mixed", "roleLevel": "entry" },
+      "targetJob": { "job_title": "Consultant", "company": "Deloitte", "description": "@consultant" },
+      "expect": {
+        "status": "ok",
+        "documentIds": { "company": "company.deloitte", "role": "role.consulting", "industry": "industry.consulting" },
+        "includeSections": ["company.deloitte#case-and-scenario", "role.consulting#early-career"]
+      }
+    },
+    {
+      "id": "deloitte-senior-consultant",
+      "about": "The entry-level case notes don't reach a senior consultant.",
+      "setup": { "goal": "specific", "focusArea": "mixed", "roleLevel": "senior" },
+      "targetJob": { "job_title": "Senior Consultant", "company": "Deloitte Consulting LLP", "description": "@consultant" },
+      "expect": {
+        "documentIds": { "company": "company.deloitte", "role": "role.consulting" },
+        "includeSections": ["company.deloitte#overview", "role.consulting#senior-lead"],
+        "excludeSections": ["company.deloitte#case-and-scenario", "role.consulting#early-career"]
+      }
+    },
+    {
+      "id": "ey-alias-with-suffix",
+      "about": "'Ernst & Young LLP' matches EY through a reviewed alias after the suffix is removed.",
+      "setup": { "goal": "specific", "focusArea": "behavioral", "roleLevel": "entry" },
+      "targetJob": { "job_title": "Associate Consultant", "company": "Ernst & Young LLP", "description": "@consultant" },
+      "expect": {
+        "status": "ok",
+        "documentIds": { "company": "company.ey", "role": "role.consulting" },
+        "includeSections": ["company.ey#overview"],
+        "includeSources": ["https://www.ey.com/en_us/careers/interview-tips"]
+      }
+    },
+    {
+      "id": "accenture-case-scoped-to-consulting",
+      "about": "Accenture case notes apply to consulting roles but not to a software engineer.",
+      "setup": { "goal": "specific", "focusArea": "behavioral", "roleLevel": "mid" },
+      "targetJob": { "job_title": "Software Engineer", "company": "Accenture", "description": "@sweBackend" },
+      "expect": {
+        "documentIds": { "company": "company.accenture", "role": "role.software-engineering" },
+        "includeSections": ["company.accenture#overview", "company.accenture#behavioral"],
+        "excludeSections": ["company.accenture#case-study"]
+      }
+    },
+    {
+      "id": "google-llc",
+      "about": "'Google LLC' matches Google after the legal suffix is removed.",
+      "setup": { "goal": "specific", "focusArea": "technical", "roleLevel": "mid" },
+      "targetJob": { "job_title": "Software Engineer", "company": "Google LLC", "description": "@sweBackend" },
+      "expect": {
+        "status": "ok",
+        "documentIds": { "company": "company.google" },
+        "includeSections": ["company.google#overview"]
+      }
+    },
+    {
+      "id": "unitedhealth-alias",
+      "about": "'UHG' is a reviewed alias for UnitedHealth Group.",
+      "setup": { "goal": "specific", "focusArea": "behavioral" },
+      "targetJob": { "job_title": "Business Analyst", "company": "UHG", "description": "@businessAnalyst" },
+      "expect": {
+        "documentIds": { "company": "company.unitedhealth-group", "role": "role.business-analysis", "industry": "industry.healthcare" },
+        "matchedBy": { "industry": "company" },
+        "includeSections": ["company.unitedhealth-group#overview"]
       }
     },
     {

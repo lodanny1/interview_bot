@@ -13,11 +13,13 @@ function body(chars, word = "detail") {
   return text.slice(0, chars).trim();
 }
 
-function sectionText({ title, slug, levels, tags, sources = [], text = DEFAULT_BODY }) {
+function sectionText({ title, slug, levels, tags, roles, names, sources = [], text = DEFAULT_BODY }) {
   return [
     `## ${title || slug} {#${slug}}`,
     ...(levels ? [`levels: ${levels}`] : []),
     ...(tags ? [`tags: ${tags}`] : []),
+    ...(roles ? [`roles: ${roles}`] : []),
+    ...(names ? [`names: ${names}`] : []),
     ...sources.map((url) => `source: ${url}`),
     "",
     text,

@@ -141,6 +141,87 @@ test("no framework at all is unavailable while other facets still work", () => {
   assert.equal(result.status, "partial");
 });
 
+/* ------------------------- Eligibility and coverage ------------------------ */
+
+function scopedKnowledgeBase() {
+  return build([
+    ...frameworkFiles(),
+    roleFile({ slug: "widgets", aliases: ["Widget Engineer"] }),
+    roleFile({ slug: "gadgets", aliases: ["Gadget Analyst"] }),
+    companyFile({
+      slug: "acme",
+      title: "Acme",
+      aliases: ["Acme Cloud"],
+      sections: [
+        { slug: "overview", sources: ["https://example.com/acme"], text: "Acme overview with enough words to be valid." },
+        {
+          slug: "widget-loop",
+          roles: "widgets",
+          sources: ["https://example.com/acme/widgets"],
+          text: "Acme widget engineers have a widget loop with enough words.",
+        },
+        {
+          slug: "senior-widget-loop",
+          roles: "widgets",
+          levels: "senior, lead",
+          sources: ["https://example.com/acme/senior-widgets"],
+          text: "Acme senior widget engineers have a design round with enough words.",
+        },
+        {
+          slug: "cloud",
+          names: "acme cloud",
+          sources: ["https://example.com/acme/cloud"],
+          text: "Acme Cloud runs its own hiring steps, described with enough words.",
+        },
+      ],
+    }),
+  ]);
+}
+
+test("role-scoped company sections only reach that role, and level and role filters combine", () => {
+  const knowledgeBase = scopedKnowledgeBase();
+  const widget = retrieve(knowledgeBase, { company: "Acme", jobTitle: "Widget Engineer", roleLevel: "mid" });
+  const seniorWidget = retrieve(knowledgeBase, { company: "Acme", jobTitle: "Widget Engineer", roleLevel: "senior" });
+  const gadget = retrieve(knowledgeBase, { company: "Acme", jobTitle: "Gadget Analyst", roleLevel: "senior" });
+  const unknown = retrieve(knowledgeBase, { company: "Acme", jobTitle: "Mystery Role" });
+
+  assert.ok(sectionIds(widget).includes("company.acme#widget-loop"));
+  assert.ok(!sectionIds(widget).includes("company.acme#senior-widget-loop"));
+  assert.ok(sectionIds(seniorWidget).includes("company.acme#senior-widget-loop"));
+  assert.ok(!sectionIds(gadget).some((id) => id.includes("widget-loop")));
+  assert.ok(!sectionIds(unknown).some((id) => id.includes("widget-loop")));
+  assert.deepEqual(widget.filters, { roleLevel: "mid", role: "widgets", companyName: "acme" });
+
+  // Sources follow the included sections only.
+  assert.ok(!gadget.sources.some((source) => source.url.includes("widgets")));
+
+  for (const result of [widget, seniorWidget, gadget, unknown]) {
+    assert.deepEqual(checkInvariants(knowledgeBase, { knowledge: result }), []);
+  }
+});
+
+test("name-scoped sections only reach inputs matched through that name", () => {
+  const knowledgeBase = scopedKnowledgeBase();
+  const cloud = retrieve(knowledgeBase, { company: "Acme Cloud, Inc." });
+  const parent = retrieve(knowledgeBase, { company: "Acme" });
+
+  assert.equal(cloud.coverage.company.documentId, "company.acme");
+  assert.ok(sectionIds(cloud).includes("company.acme#cloud"));
+  assert.ok(!sectionIds(parent).includes("company.acme#cloud"));
+  assert.ok(!parent.sources.some((source) => source.url.endsWith("/cloud")));
+});
+
+test("a valid industry without a document is not found, and without one given it stays not given", () => {
+  const knowledgeBase = build(frameworkFiles());
+  const healthcare = retrieve(knowledgeBase, { industry: "healthcare" });
+
+  assert.equal(healthcare.status, "partial");
+  assert.equal(healthcare.coverage.industry.status, "not_found");
+  assert.equal(healthcare.coverage.industry.reason, "no_matching_document");
+  assert.equal(retrieve(knowledgeBase, {}).coverage.industry.status, "not_given");
+  assert.equal(retrieve(knowledgeBase, { industry: "retail" }).coverage.industry.reason, "unknown_industry");
+});
+
 /* --------------------------------- Budget --------------------------------- */
 
 function bigKnowledgeBase() {

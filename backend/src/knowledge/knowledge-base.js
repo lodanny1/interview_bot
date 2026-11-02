@@ -46,7 +46,7 @@ const LIMITS = {
   aliasesPerDocument: 20,
   keywordChars: 40,
   keywordsPerDocument: 40,
-  sectionsPerDocument: 8,
+  sectionsPerDocument: 12,
   sectionMinChars: 40,
   sectionMaxChars: 1200,
   sourcesPerSection: 5,
@@ -67,11 +67,20 @@ const HEADER_FIELDS = {
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HEADER_LINE = /^([a-z]+): (.*)$/;
 const SECTION_HEADING = /^## (.+?) \{#([a-z0-9]+(?:-[a-z0-9]+)*)\}$/;
-const SECTION_META_LINE = /^(levels|tags|source): (.*)$/;
+const SECTION_META_LINE = /^(levels|tags|roles|names|source): (.*)$/;
+
+// Which kinds may scope a section by role family or by matched company name.
+const SECTION_FIELD_KINDS = {
+  roles: ["company", "framework", "industry"],
+  names: ["company"],
+};
 const REQUIRED_SECTION = "overview";
 
 function normalizeLineEndings(text) {
-  return String(text).replace(/^﻿/, "").replace(/\r\n?/g, "\n");
+  const value = String(text);
+  const withoutBom = value.charCodeAt(0) === 0xfeff ? value.slice(1) : value;
+
+  return withoutBom.replace(/\r\n?/g, "\n");
 }
 
 function isValidDate(value) {
@@ -168,8 +177,8 @@ function parseHeader(lines, fail) {
   return { fields, end };
 }
 
-function parseSectionMeta(metaLines, fail) {
-  const meta = { levels: "all", tags: [], sources: [] };
+function parseSectionMeta(metaLines, kind, fail) {
+  const meta = { levels: "all", tags: [], roles: [], names: [], sources: [] };
   const seen = new Set();
 
   for (const { key, value, line } of metaLines) {
@@ -180,7 +189,35 @@ function parseSectionMeta(metaLines, fail) {
 
     seen.add(key);
 
-    if (key === "levels") {
+    if (SECTION_FIELD_KINDS[key] && !SECTION_FIELD_KINDS[key].includes(kind)) {
+      fail(line, "field_not_allowed", `${key} is not used by ${kind} files`);
+      continue;
+    }
+
+    if (key === "roles") {
+      // Role document slugs, e.g. "software-engineering". Checked across
+      // files once every role document is known.
+      const roles = splitList(value);
+
+      if (roles.some((role) => !SLUG_PATTERN.test(role)) || new Set(roles).size !== roles.length) {
+        fail(line, "invalid_roles", "role file slugs separated by commas");
+      } else {
+        meta.roles = roles;
+      }
+    } else if (key === "names") {
+      // Normalized company names (as the loader normalizes titles and
+      // aliases), so a section can apply to one business unit only.
+      const names = splitList(value);
+
+      if (
+        names.some((name) => !name || normalizeCompanyName(name) !== name) ||
+        new Set(names).size !== names.length
+      ) {
+        fail(line, "invalid_names", "normalized company names separated by commas");
+      } else {
+        meta.names = names;
+      }
+    } else if (key === "levels") {
       const levels = splitList(value);
 
       if (levels.length === 1 && levels[0] === "all") {
@@ -216,7 +253,7 @@ function parseSectionMeta(metaLines, fail) {
   return meta;
 }
 
-function parseSections(lines, start, documentId, fail) {
+function parseSections(lines, start, documentId, kind, fail) {
   const sections = [];
   let index = start;
 
@@ -242,7 +279,7 @@ function parseSections(lines, start, documentId, fail) {
     }
 
     if (index < lines.length && lines[index].trim() && !lines[index].startsWith("## ")) {
-      fail(index + 1, "invalid_section_metadata", "after the heading, only levels/tags/source lines, then a blank line");
+      fail(index + 1, "invalid_section_metadata", "after the heading, only levels/tags/roles/names/source lines, then a blank line");
     }
 
     const bodyLines = [];
@@ -258,7 +295,7 @@ function parseSections(lines, start, documentId, fail) {
     }
 
     const [, title, slug] = heading;
-    const meta = parseSectionMeta(metaLines, fail);
+    const meta = parseSectionMeta(metaLines, kind, fail);
     const body = bodyLines.join("\n").trim();
 
     sections.push({
@@ -408,7 +445,7 @@ function parseDocument(file, rawText, options = {}) {
     fail(industryField.line, "unknown_industry", `known industries: ${INDUSTRIES.join(", ")}`);
   }
 
-  const sections = parseSections(lines, header.end + 1, expectedId, fail);
+  const sections = parseSections(lines, header.end + 1, expectedId, directoryKind, fail);
   const slugs = new Set();
 
   for (const section of sections) {
@@ -436,6 +473,12 @@ function parseDocument(file, rawText, options = {}) {
     if (directoryKind === "company" && section.sources.length === 0) {
       fail(section.line, "missing_source", "every company section needs a source line");
     }
+
+    const unknownName = section.names.find((name) => !matchKeys.includes(name));
+
+    if (unknownName) {
+      fail(section.line, "unknown_name", `'${unknownName}' is not this company's title or an alias`);
+    }
   }
 
   if (sections.length > LIMITS.sectionsPerDocument) {
@@ -448,6 +491,8 @@ function parseDocument(file, rawText, options = {}) {
     fail(0, "missing_section", `every file needs a {#${REQUIRED_SECTION}} section`);
   } else if (overview.levels !== "all") {
     fail(overview.line, "invalid_levels", "the overview section must apply to all levels");
+  } else if (overview.roles.length > 0 || overview.names.length > 0) {
+    fail(overview.line, "scoped_overview", "the overview section must apply to every role and name");
   }
 
   if (directoryKind === "role") {
@@ -482,6 +527,8 @@ function parseDocument(file, rawText, options = {}) {
         title: section.title,
         levels: section.levels,
         tags: section.tags,
+        roles: section.roles,
+        names: section.names,
         sources: section.sources,
         body: section.body,
         order,
@@ -592,6 +639,23 @@ function buildKnowledgeBase(files, options = {}) {
         detail: `focus area '${area}' has no framework file`,
       });
       degradedKinds.add("framework");
+    }
+  }
+
+  // A section scoped to a role that doesn't exist could never be selected.
+  for (const document of documents) {
+    for (const section of document.sections) {
+      for (const role of section.roles) {
+        if (!documentMap.has(`role.${role}`)) {
+          errors.push({
+            file: document.file,
+            line: 0,
+            code: "unknown_role_reference",
+            detail: `${section.id} lists role '${role}', which has no role file`,
+          });
+          degradedKinds.add(document.kind);
+        }
+      }
     }
   }
 

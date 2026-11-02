@@ -56,12 +56,16 @@ function checkInvariants(knowledgeBase, { knowledge }) {
       fail(`${section.id} is not included whole`);
     }
 
-    const eligible =
+    const { filters } = knowledge;
+    const levelOk =
       original &&
-      (original.levels === "all" ||
-        (knowledge.roleLevel !== null && original.levels.includes(knowledge.roleLevel)));
+      (original.levels === "all" || (filters.roleLevel !== null && original.levels.includes(filters.roleLevel)));
+    const roleOk = original && (original.roles.length === 0 || original.roles.includes(filters.role));
+    const nameOk = original && (original.names.length === 0 || original.names.includes(filters.companyName));
 
-    if (!eligible) fail(`${section.id} is not eligible for role level ${knowledge.roleLevel}`);
+    if (!levelOk) fail(`${section.id} is not eligible for role level ${filters.roleLevel}`);
+    if (!roleOk) fail(`${section.id} is scoped to other roles than ${filters.role}`);
+    if (!nameOk) fail(`${section.id} is scoped to other company names than ${filters.companyName}`);
 
     // Kinds and coverage facets have the same names.
     const facet = knowledge.coverage[section.kind];

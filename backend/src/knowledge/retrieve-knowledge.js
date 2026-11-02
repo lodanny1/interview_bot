@@ -21,7 +21,7 @@ const {
 // Bump whenever matching, thresholds, ranking, the budget or the context
 // format change. Together with the knowledge base version it identifies how a
 // context was produced.
-const RETRIEVER_VERSION = "r1";
+const RETRIEVER_VERSION = "r2";
 
 // Characters, not tokens. Roughly 1,500 tokens of English, but a character
 // limit is not a guaranteed token count.
@@ -42,10 +42,11 @@ const DISPLAY_ORDER = ["company", "role", "framework", "industry"];
 
 // Calibrated against fixtures/retrieval-cases.json (see the report script).
 // A role is only inferred when the best match clears every bar; otherwise the
-// role stays unknown instead of being forced.
+// role stays unknown instead of being forced. With 8 role files, one shared
+// title word scores up to about 2.7, so minTerms is the main title guard.
 const ROLE_THRESHOLDS = {
-  title: { minScore: 1.5, minTerms: 2, minRatio: 1.5 },
-  description: { minScore: 4, minTerms: 4, minRatio: 1.5 },
+  title: { minScore: 3, minTerms: 2, minRatio: 1.5 },
+  description: { minScore: 6, minTerms: 4, minRatio: 1.5 },
 };
 
 const INPUT_LIMITS = {
@@ -92,22 +93,30 @@ function round(score) {
 
 /* ------------------------------- Matching -------------------------------- */
 
+// Returns { coverage, name }: name is the normalized title or alias that
+// matched, which decides "names:"-scoped sections (e.g. AWS-only notes).
 function matchCompany(knowledgeBase, company) {
-  if (!company) return coverage("not_given", null);
+  if (!company) return { coverage: coverage("not_given", null), name: null };
 
   const key = normalizeCompanyName(company);
   const documentId = key ? knowledgeBase.companyKeys.get(key) : undefined;
 
   if (documentId) {
-    return coverage("matched", company, { documentId, matchedBy: "name" });
+    return { coverage: coverage("matched", company, { documentId, matchedBy: "name" }), name: key };
   }
 
   // A skipped company file might have matched, so "not found" would be wrong.
   if (knowledgeBase.degradedKinds.has("company")) {
-    return coverage("unavailable", company, { reason: "knowledge_degraded" });
+    return {
+      coverage: coverage("unavailable", company, { reason: "knowledge_degraded" }),
+      name: null,
+    };
   }
 
-  return coverage("not_found", company, { reason: "no_matching_document" });
+  return {
+    coverage: coverage("not_found", company, { reason: "no_matching_document" }),
+    name: null,
+  };
 }
 
 function containsPhrase(tokens, phrase) {
@@ -272,13 +281,37 @@ function matchIndustry(knowledgeBase, industry, companyDocument) {
 
 /* ------------------------------- Ranking --------------------------------- */
 
-function isEligible(section, roleLevel) {
-  return section.levels === "all" || (roleLevel !== null && section.levels.includes(roleLevel));
+// filters: { roleLevel, role, companyName }, where role is the matched role
+// file slug ("software-engineering") and companyName the normalized name the
+// company matched through. Returns null when eligible, otherwise the reason.
+function ineligibleReason(section, filters) {
+  if (section.levels !== "all" && !(filters.roleLevel && section.levels.includes(filters.roleLevel))) {
+    return "level";
+  }
+
+  if (section.roles.length > 0 && !(filters.role && section.roles.includes(filters.role))) {
+    return "role";
+  }
+
+  if (section.names.length > 0 && !(filters.companyName && section.names.includes(filters.companyName))) {
+    return "name";
+  }
+
+  return null;
+}
+
+function specificity(section) {
+  return (
+    (section.levels === "all" ? 0 : 1) +
+    (section.roles.length > 0 ? 1 : 0) +
+    (section.names.length > 0 ? 1 : 0)
+  );
 }
 
 // Sort keys, smallest first: the overview, then sections tagged with the
-// focus area, untagged, tagged for other areas; then sections written for
-// the chosen level before general ones; then BM25 score; then file order.
+// focus area, untagged, tagged for other areas; then sections scoped to the
+// chosen level, role or business unit before general ones; then BM25 score;
+// then file order.
 function rankKey(section, focusArea) {
   const focusRank =
     focusArea === DEFAULT_FOCUS_AREA || !FOCUS_AREAS.includes(focusArea)
@@ -289,19 +322,26 @@ function rankKey(section, focusArea) {
           ? 1
           : 2;
 
-  return [
-    section.slug === "overview" ? 0 : 1,
-    focusRank,
-    section.levels === "all" ? 1 : 0,
-  ];
+  return [section.slug === "overview" ? 0 : 1, focusRank, -specificity(section)];
 }
 
-// Level filtering happens before scoring, so an ineligible section is never
-// ranked. IDF still comes from the whole knowledge base, which keeps scores
-// stable regardless of the filter.
-function rankSections(knowledgeBase, document, { roleLevel, focusArea, queryTokens }) {
-  const eligible = document.sections.filter((section) => isEligible(section, roleLevel));
-  const filtered = document.sections.filter((section) => !isEligible(section, roleLevel));
+// Level, role and name filtering happens before scoring, so an ineligible
+// section is never ranked. IDF still comes from the whole knowledge base,
+// which keeps scores stable regardless of the filter.
+function rankSections(knowledgeBase, document, { filters, focusArea, queryTokens }) {
+  const eligible = [];
+  const filtered = [];
+
+  for (const section of document.sections) {
+    const reason = ineligibleReason(section, filters);
+
+    if (reason) {
+      filtered.push({ id: section.id, reason });
+    } else {
+      eligible.push(section);
+    }
+  }
+
   const scores = new Map(
     scoreBm25(knowledgeBase.sectionIndex, queryTokens, eligible.map((section) => section.id)).map(
       (result) => [result.id, result.score]
@@ -427,7 +467,11 @@ function emptyResult(knowledgeBase, input, reason) {
     version: knowledgeBase ? knowledgeBase.version : null,
     retrieverVersion: RETRIEVER_VERSION,
     knowledgeStatus: knowledgeBase ? knowledgeBase.status : "unavailable",
-    roleLevel: ROLE_LEVELS.includes(input.roleLevel) ? input.roleLevel : null,
+    filters: {
+      roleLevel: ROLE_LEVELS.includes(input.roleLevel) ? input.roleLevel : null,
+      role: null,
+      companyName: null,
+    },
     coverage: {
       company: unavailableIfGiven(input.company),
       role: unavailableIfGiven(input.jobTitle),
@@ -442,14 +486,20 @@ function emptyResult(knowledgeBase, input, reason) {
 }
 
 function retrieve(knowledgeBase, input, options) {
-  const roleLevel = ROLE_LEVELS.includes(input.roleLevel) ? input.roleLevel : null;
   const focusArea = FOCUS_AREAS.includes(input.focusArea) ? input.focusArea : DEFAULT_FOCUS_AREA;
 
   const company = matchCompany(knowledgeBase, input.company);
-  const companyDocument = company.documentId ? knowledgeBase.documents.get(company.documentId) : null;
+  const companyDocument = company.coverage.documentId
+    ? knowledgeBase.documents.get(company.coverage.documentId)
+    : null;
   const role = matchRole(knowledgeBase, input.jobTitle, input.jobDescription);
+  const filters = {
+    roleLevel: ROLE_LEVELS.includes(input.roleLevel) ? input.roleLevel : null,
+    role: role.coverage.documentId ? role.coverage.documentId.replace(/^role\./, "") : null,
+    companyName: company.name,
+  };
   const coverageByFacet = {
-    company,
+    company: company.coverage,
     role: role.coverage,
     framework: matchFramework(knowledgeBase, input.focusArea),
     industry: matchIndustry(knowledgeBase, input.industry, companyDocument),
@@ -460,7 +510,7 @@ function retrieve(knowledgeBase, input, options) {
   );
 
   const plan = {};
-  const filteredIds = [];
+  const filtered = [];
 
   for (const facet of DISPLAY_ORDER) {
     const { documentId } = coverageByFacet[facet];
@@ -468,13 +518,13 @@ function retrieve(knowledgeBase, input, options) {
     if (!documentId) continue;
 
     const ranking = rankSections(knowledgeBase, knowledgeBase.documents.get(documentId), {
-      roleLevel,
+      filters,
       focusArea,
       queryTokens,
     });
 
     plan[facet] = { documentId, ranked: ranking.ranked };
-    filteredIds.push(...ranking.filtered.map((section) => section.id));
+    filtered.push(...ranking.filtered);
   }
 
   const selectedIds = selectSections(knowledgeBase, plan);
@@ -506,6 +556,8 @@ function retrieve(knowledgeBase, input, options) {
       title: section.title,
       levels: section.levels,
       tags: section.tags,
+      roles: section.roles,
+      names: section.names,
       score: round(scoreById.get(section.id) || 0),
       sources: section.sources,
     }))
@@ -554,7 +606,7 @@ function retrieve(knowledgeBase, input, options) {
     version: knowledgeBase.version,
     retrieverVersion: RETRIEVER_VERSION,
     knowledgeStatus: knowledgeBase.status,
-    roleLevel,
+    filters,
     coverage: coverageByFacet,
     documents: includedDocuments.map((document) => ({
       id: document.id,
@@ -587,7 +639,7 @@ function retrieve(knowledgeBase, input, options) {
           selected: selectedIds.has(section.id),
         }))
       ),
-      filteredByLevel: filteredIds,
+      filtered,
     };
   }
 

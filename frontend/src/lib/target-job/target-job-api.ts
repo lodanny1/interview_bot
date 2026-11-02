@@ -153,6 +153,11 @@ export async function removeTargetJob(idToken: string): Promise<RemoveTargetJobR
   return { ok: true };
 }
 
+// Mock mode only: lets the interview insights mock follow the saved job.
+export function getMockTargetJob(): TargetJob | null {
+  return mockTargetJob;
+}
+
 // Tests only.
 export function resetMockTargetJob(): void {
   mockTargetJob = null;

@@ -32,6 +32,8 @@ interface TargetJobFormProps {
   initialTargetJob: TargetJob | null;
   // Shown when the saved job couldn't be loaded; the form still works.
   loadError?: string;
+  // Called after a successful save (with the saved job) or removal (null).
+  onTargetJobChange?: (targetJob: TargetJob | null) => void;
 }
 
 const inputClass =
@@ -53,6 +55,7 @@ export function TargetJobForm({
   removeAction,
   initialTargetJob,
   loadError,
+  onTargetJobChange,
 }: TargetJobFormProps) {
   const [editing, setEditing] = useState(initialTargetJob === null);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
@@ -76,6 +79,7 @@ export function TargetJobForm({
           setCompany("");
           setDescription("");
         }
+        onTargetJobChange?.(nextState.targetJob);
       }
       return nextState;
     },

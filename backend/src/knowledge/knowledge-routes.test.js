@@ -5,8 +5,11 @@ const assert = require("node:assert/strict");
 const { after, before, beforeEach, describe, it } = require("node:test");
 const express = require("express");
 
+const fs = require("node:fs");
+
 const { buildKnowledgeBase, loadKnowledgeBase } = require("./knowledge-base");
 const { createKnowledgeRouter } = require("./knowledge-routes");
+const { OUTPUT: FRONTEND_FIXTURE, captureInsights } = require("../../scripts/capture-insights-fixture");
 
 const realKnowledgeBase = loadKnowledgeBase({ logger: null });
 
@@ -207,4 +210,28 @@ describe("interview insights route", () => {
     assert.equal(edited.body.insights.coverage.company.title, "Capital One");
     assert.notDeepEqual(edited.body, first.body);
   });
+});
+
+// The frontend parses a committed copy of real responses. Values may drift as
+// content changes; the shape must not. Regenerate with
+// `node scripts/capture-insights-fixture.js` after a deliberate change.
+function shapeOf(value) {
+  if (Array.isArray(value)) return value.length > 0 ? [shapeOf(value[0])] : [];
+  if (value === null) return "null";
+  if (typeof value !== "object") return typeof value;
+
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, shapeOf(value[key])])
+  );
+}
+
+it("matches the response shape the frontend tests were written against", async () => {
+  const committed = JSON.parse(fs.readFileSync(FRONTEND_FIXTURE, "utf8"));
+  const current = await captureInsights();
+
+  for (const key of ["ready", "partial", "noTargetJob"]) {
+    assert.deepEqual(shapeOf(current[key]), shapeOf(committed[key]), key);
+  }
 });

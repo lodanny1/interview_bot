@@ -1,0 +1,252 @@
+{
+  "note": "Captured from backend/src/knowledge/knowledge-routes.js by backend/scripts/capture-insights-fixture.js.",
+  "ready": {
+    "status": "ready",
+    "insights": {
+      "basis": {
+        "focusArea": "mixed",
+        "roleLevel": null
+      },
+      "targetJob": {
+        "jobTitle": "Software Development Engineer Intern",
+        "company": "Amazon",
+        "updatedAt": "2026-11-01T10:00:00.000Z"
+      },
+      "coverage": {
+        "company": {
+          "status": "matched",
+          "name": "Amazon",
+          "title": "Amazon",
+          "matchedBy": "name",
+          "reason": null
+        },
+        "role": {
+          "status": "matched",
+          "name": "Software Development Engineer Intern",
+          "title": "Software engineering",
+          "matchedBy": "title_alias",
+          "reason": null
+        },
+        "framework": {
+          "status": "matched",
+          "name": "mixed",
+          "title": "Mixed interviews",
+          "matchedBy": "focus_area",
+          "reason": null
+        },
+        "industry": {
+          "status": "matched",
+          "name": null,
+          "title": "Technology industry",
+          "matchedBy": "company",
+          "reason": null
+        }
+      },
+      "groups": [
+        {
+          "documentId": "company.amazon",
+          "kind": "company",
+          "title": "Amazon",
+          "reviewed": "2026-11-01",
+          "notes": [
+            {
+              "id": "company.amazon#overview",
+              "title": "How Amazon describes its interviews",
+              "text": "Amazon says its application and interview process differs from role to role, and it publishes separate interview prep guides by role. The guides reviewed for these notes (software development, product management, business intelligence, UX and university roles) all describe behavioral questions about how the candidate has demonstrated Amazon's Leadership Principles in past work. Role-specific notes apply only to the roles and levels they name.",
+              "sources": [
+                "https://www.amazon.jobs/content/en/how-we-hire/interviewing-at-amazon",
+                "https://www.amazon.jobs/en/principles",
+                "https://amazon.jobs/content/en/how-we-hire/sde-ii-interview-prep",
+                "https://amazon.jobs/content/en/how-we-hire/product-manager-interview-prep"
+              ]
+            },
+            {
+              "id": "company.amazon#leadership-principles",
+              "title": "Leadership Principles",
+              "text": "Amazon publishes 16 Leadership Principles:\n- Customer Obsession\n- Ownership\n- Invent and Simplify\n- Are Right, A Lot\n- Learn and Be Curious\n- Hire and Develop the Best\n- Insist on the Highest Standards\n- Think Big\n- Bias for Action\n- Frugality\n- Earn Trust\n- Dive Deep\n- Have Backbone; Disagree and Commit\n- Deliver Results\n- Strive to be Earth's Best Employer\n- Success and Scale Bring Broad Responsibility\n\nPractice questions can ask for one specific past example that shows one of these principles.",
+              "sources": [
+                "https://www.amazon.jobs/en/principles"
+              ]
+            }
+          ]
+        },
+        {
+          "documentId": "role.software-engineering",
+          "kind": "role",
+          "title": "Software engineering",
+          "reviewed": "2026-11-01",
+          "notes": [
+            {
+              "id": "role.software-engineering#overview",
+              "title": "What software engineering interviews assess",
+              "text": "Software engineering interviews usually assess problem solving and coding, understanding of core computer science concepts, the ability to explain technical decisions, and collaboration. Most processes combine coding exercises with behavioral questions about past projects; design questions matter more as seniority increases.",
+              "sources": []
+            },
+            {
+              "id": "role.software-engineering#coding-exercises",
+              "title": "Coding exercises",
+              "text": "Coding rounds typically give a problem to solve in a shared editor or on a whiteboard. Common topics are arrays and strings, hash maps, trees and graphs, recursion, sorting and searching. Interviewers watch whether the candidate clarifies the problem, explains an approach before coding, handles edge cases and checks the code by walking through an example.",
+              "sources": []
+            }
+          ]
+        },
+        {
+          "documentId": "framework.mixed",
+          "kind": "framework",
+          "title": "Mixed interviews",
+          "reviewed": "2026-11-01",
+          "notes": [
+            {
+              "id": "framework.mixed#overview",
+              "title": "How mixed interviews work",
+              "text": "A mixed interview combines several question types in one session. It usually opens with background and motivation questions, moves between behavioral questions and role-specific or technical questions, and ends with time for the candidate's own questions. Interviewers use the mix to check that the candidate's stories and technical depth are consistent.",
+              "sources": []
+            },
+            {
+              "id": "framework.mixed#balance",
+              "title": "Balancing a mixed session",
+              "text": "A balanced mixed session covers at least one behavioral question answered with a specific example, at least one question that tests role-specific skills, and one question about motivation for the role or company. Candidates do well when they switch styles cleanly: structured stories for behavioral questions, and step-by-step reasoning for technical ones.",
+              "sources": []
+            }
+          ]
+        },
+        {
+          "documentId": "industry.tech",
+          "kind": "industry",
+          "title": "Technology industry",
+          "reviewed": "2026-11-01",
+          "notes": [
+            {
+              "id": "industry.tech#overview",
+              "title": "Interviewing in technology",
+              "text": "Technology employers often run structured processes with separate rounds for role skills and behavioral questions, and many use coding, design or case exercises even for non-engineering roles. Interviewers tend to value comfort with fast change, learning new tools quickly, data-informed decisions and examples of shipping work in small iterations.",
+              "sources": []
+            },
+            {
+              "id": "industry.tech#common-questions",
+              "title": "Questions to expect",
+              "text": "Expect questions about the products the employer builds, how the candidate keeps their skills current, a time they worked with incomplete requirements, and how they would measure the success of a feature or project.",
+              "sources": []
+            }
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://www.amazon.jobs/content/en/how-we-hire/interviewing-at-amazon",
+          "documentTitle": "Amazon",
+          "reviewed": "2026-11-01"
+        },
+        {
+          "url": "https://www.amazon.jobs/en/principles",
+          "documentTitle": "Amazon",
+          "reviewed": "2026-11-01"
+        },
+        {
+          "url": "https://amazon.jobs/content/en/how-we-hire/sde-ii-interview-prep",
+          "documentTitle": "Amazon",
+          "reviewed": "2026-11-01"
+        },
+        {
+          "url": "https://amazon.jobs/content/en/how-we-hire/product-manager-interview-prep",
+          "documentTitle": "Amazon",
+          "reviewed": "2026-11-01"
+        }
+      ],
+      "version": "kb-23b96b2d9a6b",
+      "retrieverVersion": "r2"
+    }
+  },
+  "partial": {
+    "status": "partial",
+    "insights": {
+      "basis": {
+        "focusArea": "mixed",
+        "roleLevel": null
+      },
+      "targetJob": {
+        "jobTitle": "Data Analyst",
+        "company": "Riverbend Credit Union",
+        "updatedAt": "2026-11-01T11:00:00.000Z"
+      },
+      "coverage": {
+        "company": {
+          "status": "not_found",
+          "name": "Riverbend Credit Union",
+          "title": null,
+          "matchedBy": null,
+          "reason": "no_matching_document"
+        },
+        "role": {
+          "status": "matched",
+          "name": "Data Analyst",
+          "title": "Data analytics and data science",
+          "matchedBy": "title_alias",
+          "reason": null
+        },
+        "framework": {
+          "status": "matched",
+          "name": "mixed",
+          "title": "Mixed interviews",
+          "matchedBy": "focus_area",
+          "reason": null
+        },
+        "industry": {
+          "status": "not_given",
+          "name": null,
+          "title": null,
+          "matchedBy": null,
+          "reason": null
+        }
+      },
+      "groups": [
+        {
+          "documentId": "role.data-analytics",
+          "kind": "role",
+          "title": "Data analytics and data science",
+          "reviewed": "2026-11-01",
+          "notes": [
+            {
+              "id": "role.data-analytics#overview",
+              "title": "What data interviews assess",
+              "text": "Data analyst and data scientist interviews usually assess the ability to turn a business question into an analysis, work with data using SQL and a language such as Python or R, apply statistics correctly, and explain findings to people who are not analysts. Many processes include a technical screen, a take-home or live analysis, and behavioral questions about past projects.",
+              "sources": []
+            },
+            {
+              "id": "role.data-analytics#technical-screens",
+              "title": "Technical screens",
+              "text": "Technical screens commonly include SQL questions on a small schema, interpreting a chart or experiment result, probability and statistics questions, and a case where the candidate investigates why a metric changed. Interviewers look for clarifying questions about how the data was collected and for sanity checks on results.",
+              "sources": []
+            }
+          ]
+        },
+        {
+          "documentId": "framework.mixed",
+          "kind": "framework",
+          "title": "Mixed interviews",
+          "reviewed": "2026-11-01",
+          "notes": [
+            {
+              "id": "framework.mixed#overview",
+              "title": "How mixed interviews work",
+              "text": "A mixed interview combines several question types in one session. It usually opens with background and motivation questions, moves between behavioral questions and role-specific or technical questions, and ends with time for the candidate's own questions. Interviewers use the mix to check that the candidate's stories and technical depth are consistent.",
+              "sources": []
+            },
+            {
+              "id": "framework.mixed#balance",
+              "title": "Balancing a mixed session",
+              "text": "A balanced mixed session covers at least one behavioral question answered with a specific example, at least one question that tests role-specific skills, and one question about motivation for the role or company. Candidates do well when they switch styles cleanly: structured stories for behavioral questions, and step-by-step reasoning for technical ones.",
+              "sources": []
+            }
+          ]
+        }
+      ],
+      "sources": [],
+      "version": "kb-23b96b2d9a6b",
+      "retrieverVersion": "r2"
+    }
+  },
+  "noTargetJob": {
+    "status": "no_target_job"
+  }
+}

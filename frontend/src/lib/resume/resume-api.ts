@@ -35,6 +35,22 @@ export type ResumeFileResult =
   | { ok: true; body: ReadableStream<Uint8Array> | Uint8Array; headers: Headers }
   | { ok: false; reason: Failure | "not_found" };
 
+export type ResumeParseStatus =
+  | "PENDING"
+  | "PROCESSING"
+  | "COMPLETED"
+  | "FAILED";
+
+export type ExtractedResume = Resume & {
+  parseStatus: ResumeParseStatus;
+  parsedAt: string | null;
+  parsedJson: unknown;
+};
+
+export type ExtractResumeResult =
+  | { ok: true; resume: ExtractedResume }
+  | { ok: false; reason: Failure | "not_found" | "extraction_failed" };
+
 export function isMockMode(): boolean {
   return process.env.USE_MOCK_DATA === "true";
 }
@@ -306,3 +322,113 @@ export async function fetchResumeFile(
     headers,
   };
 }
+
+export async function extractResume(
+  idToken: string,
+  resumeId: string
+): Promise<ExtractResumeResult> {
+  if (isMockMode()) {
+    const item = getMockStore().find(
+      (entry) => entry.resume.id === resumeId
+    );
+
+    if (!item) {
+      return {
+        ok: false,
+        reason: "not_found",
+      };
+    }
+
+    return {
+      ok: true,
+      resume: {
+        ...item.resume,
+        parseStatus: "COMPLETED",
+        parsedAt: new Date().toISOString(),
+        parsedJson: {},
+      },
+    };
+  }
+
+  const response = await request(
+    `/me/resumes/${encodeURIComponent(resumeId)}/extract`,
+    {
+      method: "POST",
+      idToken,
+    }
+  );
+
+  if (!response) {
+    return {
+      ok: false,
+      reason: "unavailable",
+    };
+  }
+
+  if (isAuthFailure(response)) {
+    return {
+      ok: false,
+      reason: "unauthenticated",
+    };
+  }
+
+  if (response.status === 404) {
+    return {
+      ok: false,
+      reason: "not_found",
+    };
+  }
+
+  if (!response.ok) {
+    console.error(
+      `Extracting resume failed with status ${response.status}`
+    );
+
+    return {
+      ok: false,
+      reason: "extraction_failed",
+    };
+  }
+
+  const data = (await response.json().catch(() => null)) as {
+    resume?: unknown;
+  } | null;
+
+  if (!data || !isResume(data.resume)) {
+    return {
+      ok: false,
+      reason: "unavailable",
+    };
+  }
+
+  const resume = data.resume as Resume & {
+    parseStatus?: unknown;
+    parsedAt?: unknown;
+    parsedJson?: unknown;
+  };
+
+  if (
+    !["PENDING", "PROCESSING", "COMPLETED", "FAILED"].includes(
+      String(resume.parseStatus)
+    )
+  ) {
+    return {
+      ok: false,
+      reason: "unavailable",
+    };
+  }
+
+  return {
+    ok: true,
+    resume: {
+      ...resume,
+      parseStatus: resume.parseStatus as ResumeParseStatus,
+      parsedAt:
+        typeof resume.parsedAt === "string"
+          ? resume.parsedAt
+          : null,
+      parsedJson: resume.parsedJson ?? null,
+    },
+  };
+}
+

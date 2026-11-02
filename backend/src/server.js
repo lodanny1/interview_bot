@@ -25,6 +25,7 @@ const {
 const { createResumeRouter } = require("./resumes/resume-routes");
 const resumeRepository = require("./resumes/resume-repository");
 const resumeStorage = require("./resumes/resume-storage");
+const resumeExtractionService = require("./resumes/resume-extraction-service");
 
 const app = express();
 app.disable("x-powered-by");
@@ -322,6 +323,7 @@ app.use(
     requireActiveUser,
     repository: resumeRepository,
     storage: resumeStorage,
+    extractionService: resumeExtractionService,
   })
 );
 

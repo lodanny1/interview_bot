@@ -1,5 +1,5 @@
-// Upload Resume (Issue #06).
-// Database access for a user's zero-to-many saved resumes.
+// Upload Resume (Issue #06) + Extract Resume Information (Issue #07).
+// Database access for a user's saved resumes and extraction state.
 
 const { createPool } = require("../db/postgres");
 
@@ -10,7 +10,12 @@ const COLUMNS = `
   file_name,
   content_type,
   size_bytes,
-  uploaded_at
+  uploaded_at,
+  parse_status,
+  parsed_text,
+  parsed_json,
+  parsed_at,
+  parse_error
 `;
 
 // Return every resume owned by the user, newest first.
@@ -104,6 +109,128 @@ async function createResume({
   }
 }
 
+// Mark extraction as currently running.
+// Clears any previous error so a failed resume can be retried cleanly.
+async function markResumeProcessing(userId, resumeId) {
+  if (!userId) {
+    throw new Error("userId is required");
+  }
+
+  if (!resumeId) {
+    throw new Error("resumeId is required");
+  }
+
+  const pool = await createPool();
+
+  try {
+    const result = await pool.query(
+      `
+        UPDATE resumes
+        SET
+          parse_status = 'PROCESSING',
+          parse_error = NULL
+        WHERE user_id = $1
+          AND id = $2
+        RETURNING ${COLUMNS}
+      `,
+      [userId, resumeId]
+    );
+
+    return result.rows[0] || null;
+  } finally {
+    await pool.end();
+  }
+}
+
+// Save successful extraction results.
+async function saveResumeExtraction({
+  userId,
+  resumeId,
+  parsedText,
+  parsedJson,
+}) {
+  if (!userId) {
+    throw new Error("userId is required");
+  }
+
+  if (!resumeId) {
+    throw new Error("resumeId is required");
+  }
+
+  if (typeof parsedText !== "string" || !parsedText.trim()) {
+    throw new Error("parsedText is required");
+  }
+
+  const pool = await createPool();
+
+  try {
+    const result = await pool.query(
+      `
+        UPDATE resumes
+        SET
+          parse_status = 'COMPLETED',
+          parsed_text = $3,
+          parsed_json = $4,
+          parsed_at = CURRENT_TIMESTAMP,
+          parse_error = NULL
+        WHERE user_id = $1
+          AND id = $2
+        RETURNING ${COLUMNS}
+      `,
+      [
+        userId,
+        resumeId,
+        parsedText.trim(),
+        parsedJson ?? null,
+      ]
+    );
+
+    return result.rows[0] || null;
+  } finally {
+    await pool.end();
+  }
+}
+
+// Record a failed extraction attempt without deleting the uploaded resume.
+async function markResumeExtractionFailed({
+  userId,
+  resumeId,
+  errorMessage,
+}) {
+  if (!userId) {
+    throw new Error("userId is required");
+  }
+
+  if (!resumeId) {
+    throw new Error("resumeId is required");
+  }
+
+  const pool = await createPool();
+
+  try {
+    const result = await pool.query(
+      `
+        UPDATE resumes
+        SET
+          parse_status = 'FAILED',
+          parse_error = $3
+        WHERE user_id = $1
+          AND id = $2
+        RETURNING ${COLUMNS}
+      `,
+      [
+        userId,
+        resumeId,
+        errorMessage || "Resume extraction failed.",
+      ]
+    );
+
+    return result.rows[0] || null;
+  } finally {
+    await pool.end();
+  }
+}
+
 // Delete only the requested resume and only if the user owns it.
 async function deleteResume(userId, resumeId) {
   if (!userId) {
@@ -137,5 +264,8 @@ module.exports = {
   getResumes,
   getResume,
   createResume,
+  markResumeProcessing,
+  saveResumeExtraction,
+  markResumeExtractionFailed,
   deleteResume,
 };

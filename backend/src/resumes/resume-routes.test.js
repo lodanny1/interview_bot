@@ -121,6 +121,7 @@ describe("resume routes", () => {
   let baseUrl;
   let repository;
   let storage;
+  let extractionService;
   let signedIn;
 
   before(async () => {
@@ -150,6 +151,11 @@ describe("resume routes", () => {
           deleteResumeObject: (...args) => storage.deleteResumeObject(...args),
         },
 
+        extractionService: {
+          extractAndParseResume: (...args) =>
+            extractionService.extractAndParseResume(...args),
+        },
+
         logger: {
           error() {},
         },
@@ -173,6 +179,28 @@ describe("resume routes", () => {
   beforeEach(() => {
     repository = fakeRepository();
     storage = fakeStorage();
+
+    extractionService = {
+      async extractAndParseResume({ userId, resumeId }) {
+        return {
+          resume: {
+            id: resumeId,
+            user_id: userId,
+            file_name: "My Resume.pdf",
+            content_type: "application/pdf",
+            size_bytes: PDF.length,
+            uploaded_at: "2026-11-01T12:00:00.000Z",
+            parse_status: "COMPLETED",
+            parsed_at: "2026-11-01T12:01:00.000Z",
+            parsed_json: {
+              skills: ["AWS", "Python"],
+            },
+          },
+          usage: null,
+        };
+      },
+    };
+
     signedIn = true;
   });
 
@@ -426,4 +454,99 @@ describe("resume routes", () => {
 
     assert.equal(storage.objects.size, 0);
   });
+
+it("extracts and parses a saved resume", async () => {
+  let received;
+
+  extractionService.extractAndParseResume = async (input) => {
+    received = input;
+
+    return {
+      resume: {
+        id: "resume-1",
+        user_id: USER.id,
+        file_name: "My Resume.pdf",
+        content_type: "application/pdf",
+        size_bytes: PDF.length,
+        uploaded_at: "2026-11-01T12:00:00.000Z",
+        parse_status: "COMPLETED",
+        parsed_at: "2026-11-01T12:01:00.000Z",
+        parsed_json: {
+          skills: ["AWS", "Python"],
+        },
+      },
+      usage: null,
+    };
+  };
+
+  const response = await fetch(
+    `${baseUrl}/me/resumes/resume-1/extract`,
+    {
+      method: "POST",
+    }
+  );
+
+  assert.equal(response.status, 200);
+
+  const body = await response.json();
+
+  assert.deepEqual(received, {
+    userId: USER.id,
+    resumeId: "resume-1",
+  });
+
+  assert.equal(
+    body.resume.parseStatus,
+    "COMPLETED"
+  );
+
+  assert.deepEqual(
+    body.resume.parsedJson.skills,
+    ["AWS", "Python"]
+  );
+});
+
+it("returns 404 when extracting a missing resume", async () => {
+  extractionService.extractAndParseResume = async () => {
+    const error = new Error("Resume not found.");
+    error.code = "NOT_FOUND";
+    throw error;
+  };
+
+  const response = await fetch(
+    `${baseUrl}/me/resumes/resume-missing/extract`,
+    {
+      method: "POST",
+    }
+  );
+
+  assert.equal(response.status, 404);
+
+  const body = await response.json();
+
+  assert.equal(body.code, "not_found");
+});
+
+it("returns 500 when resume extraction fails", async () => {
+  extractionService.extractAndParseResume = async () => {
+    throw new Error("Claude failed.");
+  };
+
+  const response = await fetch(
+    `${baseUrl}/me/resumes/resume-1/extract`,
+    {
+      method: "POST",
+    }
+  );
+
+  assert.equal(response.status, 500);
+
+  const body = await response.json();
+
+  assert.equal(
+    body.code,
+    "extraction_failed"
+  );
+});
+
 });

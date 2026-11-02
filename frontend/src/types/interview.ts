@@ -69,6 +69,7 @@ export interface StartInterviewInput {
   roleLevel?: string;
   experienceLevel?: string;
   jobDescription?: string;
+  resumeId?: string;
 }
 
 // An in-progress session. Different from InterviewSession above, which is a
@@ -77,16 +78,11 @@ export interface ActiveInterviewSession {
   id: string;
   title: string;
   mode: InterviewMode;
-  // Option values from the setup form. Title and focus area are required there;
-  // the others only exist if the user filled them in. The session header shows them.
-  focusArea: string;
-  industry?: string;
-  roleLevel?: string;
-  experienceLevel?: string;
-  // Footer: "Question N of {totalQuestions}" and "Est. {estimatedMinutesRemaining} mins remaining".
-  // Both optional; the footer hides whatever the backend doesn't provide.
-  totalQuestions?: number;
-  estimatedMinutesRemaining?: number;
+  status: "ACTIVE" | "COMPLETED" | "ABANDONED";
+  startedAt: string;
+  endsAt: string;
+  durationMinutes: number;
+  completionReason: "USER_ENDED" | "TIME_LIMIT" | "ABANDONED" | null;
   // Everything said so far. Right after start this holds the first question;
   // when a session is reloaded it holds the transcript the backend has stored.
   messages: InterviewMessage[];

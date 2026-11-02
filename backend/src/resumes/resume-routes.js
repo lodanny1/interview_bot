@@ -28,6 +28,8 @@ function toResponse(row) {
         contentType: row.content_type,
         sizeBytes: Number(row.size_bytes),
         uploadedAt: row.uploaded_at,
+        parseStatus: row.parse_status ?? "PENDING",
+        parsedAt: row.parsed_at ?? null,
       }
     : null;
 }
@@ -56,6 +58,7 @@ function contentDisposition(type, fileName) {
 function createResumeRouter({
   requireActiveUser,
   repository,
+  extractionService,
   storage,
   logger = console,
 }) {
@@ -245,6 +248,48 @@ function createResumeRouter({
 
     object.body.pipe(res);
   });
+
+    // Extract and structure one resume owned by the authenticated user.
+  router.post("/me/resumes/:resumeId/extract", async (req, res) => {
+    const user = await authenticate(req, res);
+    if (!user) return;
+
+    const { resumeId } = req.params;
+
+    try {
+      const result = await extractionService.extractAndParseResume({
+        userId: user.id,
+        resumeId,
+      });
+
+      return res.status(200).json({
+        resume: {
+          ...toResponse(result.resume),
+          parseStatus: result.resume.parse_status,
+          parsedAt: result.resume.parsed_at,
+          parsedJson: result.resume.parsed_json,
+        },
+      });
+    } catch (error) {
+      if (error && error.code === "NOT_FOUND") {
+        return res.status(404).json({
+          error: "Resume not found",
+          code: "not_found",
+        });
+      }
+
+      logger.error(
+        "POST /me/resumes/:resumeId/extract failed:",
+        error
+      );
+
+      return res.status(500).json({
+        error: "Unable to extract resume",
+        code: "extraction_failed",
+      });
+    }
+  });
+
 
   // Delete one resume owned by the authenticated user.
   router.delete("/me/resumes/:resumeId", async (req, res) => {

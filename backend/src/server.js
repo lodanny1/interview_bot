@@ -25,6 +25,12 @@ const {
 const { createResumeRouter } = require("./resumes/resume-routes");
 const resumeRepository = require("./resumes/resume-repository");
 const resumeStorage = require("./resumes/resume-storage");
+const resumeExtractionService = require("./resumes/resume-extraction-service");
+
+const { createInterviewRouter } = require("./interview/interview-routes");
+const interviewRepository = require("./interview/interview-repository");
+const interviewAiService = require("./interview/interview-ai-service");
+const interviewResumeContextService = require("./interview/resume-context-service");
 
 const app = express();
 app.disable("x-powered-by");
@@ -322,6 +328,16 @@ app.use(
     requireActiveUser,
     repository: resumeRepository,
     storage: resumeStorage,
+    extractionService: resumeExtractionService,
+  })
+);
+
+app.use(
+  createInterviewRouter({
+    requireActiveUser,
+    repository: interviewRepository,
+    aiService: interviewAiService,
+    resumeContextService: interviewResumeContextService,
   })
 );
 

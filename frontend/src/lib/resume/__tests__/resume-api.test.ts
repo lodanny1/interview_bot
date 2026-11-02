@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  extractResume,
   fetchResumeFile,
   loadResumes,
   removeResume,
@@ -411,4 +412,130 @@ describe("resume API", () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+
+  it("extracts a resume with POST /me/resumes/:resumeId/extract", async () => {
+    const extractedResume = {
+      ...RESUME,
+      parseStatus: "COMPLETED" as const,
+      parsedAt: "2026-11-01T12:01:00.000Z",
+      parsedJson: {
+        skills: ["AWS", "Python"],
+      },
+    };
+
+    const fetchMock = mockFetch({
+      status: 200,
+      body: {
+        resume: extractedResume,
+      },
+    });
+
+    await expect(
+      extractResume("id-token", "resume-123")
+    ).resolves.toEqual({
+      ok: true,
+      resume: extractedResume,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://backend.test/me/resumes/resume-123/extract",
+      expect.objectContaining({
+        method: "POST",
+        headers: {
+          Authorization: "Bearer id-token",
+        },
+        cache: "no-store",
+      })
+    );
+  });
+
+  it("maps extraction failures correctly", async () => {
+    mockFetch({
+      status: 404,
+      body: {
+        code: "not_found",
+      },
+    });
+
+    await expect(
+      extractResume("t", "resume-missing")
+    ).resolves.toEqual({
+      ok: false,
+      reason: "not_found",
+    });
+
+    mockFetch({
+      status: 500,
+      body: {
+        code: "extraction_failed",
+      },
+    });
+
+    await expect(
+      extractResume("t", "resume-123")
+    ).resolves.toEqual({
+      ok: false,
+      reason: "extraction_failed",
+    });
+
+    mockFetch({
+      status: 401,
+    });
+
+    await expect(
+      extractResume("t", "resume-123")
+    ).resolves.toEqual({
+      ok: false,
+      reason: "unauthenticated",
+    });
+  });
+
+  it("returns unavailable when resume extraction cannot reach the backend", async () => {
+    mockFetch(new TypeError("fetch failed"));
+
+    await expect(
+      extractResume("t", "resume-123")
+    ).resolves.toEqual({
+      ok: false,
+      reason: "unavailable",
+    });
+  });
+
+  it("extracts from the in-memory resume store in mock mode", async () => {
+    vi.stubEnv("USE_MOCK_DATA", "true");
+    resetMockResume();
+
+    const fetchMock = mockFetch({
+      status: 500,
+    });
+
+    const uploaded = await uploadResume("t", FILE);
+
+    expect(uploaded.ok).toBe(true);
+
+    if (!uploaded.ok) {
+      throw new Error("Expected mock upload to succeed");
+    }
+
+    const result = await extractResume(
+      "t",
+      uploaded.resume.id
+    );
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      throw new Error("Expected mock extraction to succeed");
+    }
+
+    expect(result.resume.parseStatus).toBe(
+      "COMPLETED"
+    );
+
+    expect(result.resume.parsedJson).toEqual({});
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
 });

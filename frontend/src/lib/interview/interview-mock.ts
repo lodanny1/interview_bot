@@ -1,7 +1,11 @@
 // Mock sessions for USE_MOCK_DATA=true (local development without the Express backend).
 // Sessions live in memory on globalThis so they survive Next.js hot reloads,
 // but not a dev-server restart. After a restart, any "mock-..." id falls back to a default session.
-import type { ActiveInterviewSession, InterviewMessage, StartInterviewInput } from "@/types/interview";
+import type {
+  ActiveInterviewSession,
+  InterviewMessage,
+  StartInterviewInput,
+} from "@/types/interview";
 
 const OPENING_QUESTIONS: Record<string, string> = {
   behavioral:
@@ -33,19 +37,24 @@ function firstQuestion(focusArea: string): InterviewMessage {
   };
 }
 
-export function createMockSession(input: StartInterviewInput): ActiveInterviewSession {
+export function createMockSession(
+  input: StartInterviewInput,
+): ActiveInterviewSession {
+  const now = new Date();
+  const endsAt = new Date(now.getTime() + 30 * 60 * 1000);
+
   const session: ActiveInterviewSession = {
     id: `mock-${Date.now().toString(36)}`,
     title: input.title,
     mode: input.mode,
-    focusArea: input.focusArea,
-    industry: input.industry,
-    roleLevel: input.roleLevel,
-    experienceLevel: input.experienceLevel,
-    totalQuestions: 5,
-    estimatedMinutesRemaining: 15,
+    status: "ACTIVE",
+    startedAt: now.toISOString(),
+    endsAt: endsAt.toISOString(),
+    durationMinutes: 30,
+    completionReason: null,
     messages: [firstQuestion(input.focusArea)],
   };
+
   store().set(session.id, session);
   return session;
 }
@@ -54,13 +63,17 @@ export function getMockSession(id: string): ActiveInterviewSession | null {
   const saved = store().get(id);
   if (saved) return saved;
   if (id.startsWith("mock-")) {
+    const now = new Date();
+
     return {
       id,
       title: "Interview",
       mode: "text",
-      focusArea: "mixed",
-      totalQuestions: 5,
-      estimatedMinutesRemaining: 15,
+      status: "ACTIVE",
+      startedAt: now.toISOString(),
+      endsAt: new Date(now.getTime() + 30 * 60 * 1000).toISOString(),
+      durationMinutes: 30,
+      completionReason: null,
       messages: [firstQuestion("mixed")],
     };
   }

@@ -114,8 +114,10 @@ for (const testCase of cases) {
     );
   }
 
-  if (knowledge.debug.filteredByLevel.length > 0) {
-    console.log(`    filtered by level: ${knowledge.debug.filteredByLevel.join(", ")}`);
+  if (knowledge.debug.filtered.length > 0) {
+    console.log(
+      `    filtered before ranking: ${knowledge.debug.filtered.map((entry) => `${entry.id} (${entry.reason})`).join(", ")}`
+    );
   }
 
   for (const source of knowledge.sources) {

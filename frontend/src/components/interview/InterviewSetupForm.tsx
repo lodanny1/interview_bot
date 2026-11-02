@@ -7,7 +7,6 @@ import {
   ArrowRight,
   ChevronDown,
   FileText,
-  FileUp,
   MessageSquareText,
   Mic,
   Paperclip,

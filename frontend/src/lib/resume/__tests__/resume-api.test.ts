@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  MOCK_PARSED_RESUME,
   extractResume,
   fetchResumeFile,
   loadResumes,
@@ -533,7 +534,8 @@ describe("resume API", () => {
       "COMPLETED"
     );
 
-    expect(result.resume.parsedJson).toEqual({});
+    // Issue #08: mock output must be usable, not an empty object.
+    expect(result.resume.parsedJson).toEqual(MOCK_PARSED_RESUME);
 
     expect(fetchMock).not.toHaveBeenCalled();
   });

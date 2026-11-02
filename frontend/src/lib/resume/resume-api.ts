@@ -56,9 +56,58 @@ export function isMockMode(): boolean {
 }
 
 // Mock mode supports multiple saved resumes as well.
-type MockResume = {
+export type MockResume = {
   resume: Resume;
   bytes: Uint8Array;
+  // Set by mock extraction and by Review Resume Information (Issue #08).
+  extraction?: {
+    parseStatus: ResumeParseStatus;
+    parsedJson: unknown;
+  };
+  review?: {
+    reviewedJson: unknown;
+    reviewedAt: string;
+  };
+};
+
+// Mock extraction result, in the resume parser's output structure.
+export const MOCK_PARSED_RESUME = {
+  name: "Jordan Lee",
+  email: "jordan.lee@example.com",
+  phone: "(555) 123-4567",
+  location: "Seattle, WA",
+  summary:
+    "Computer science graduate focused on backend services and cloud infrastructure.",
+  skills: ["Python", "TypeScript", "AWS", "PostgreSQL", "Docker"],
+  education: [
+    {
+      institution: "State University",
+      degree: "B.S.",
+      field: "Computer Science",
+      startDate: "2021",
+      endDate: "2025",
+    },
+  ],
+  experience: [
+    {
+      company: "Acme Cloud",
+      role: "Software Engineering Intern",
+      startDate: "June 2024",
+      endDate: "September 2024",
+      description: [
+        "Built REST endpoints for an internal billing service.",
+        "Cut deployment time by moving builds to GitHub Actions.",
+      ],
+    },
+  ],
+  projects: [
+    {
+      name: "Interview Bot",
+      description: ["Practice interview app with AI feedback."],
+      technologies: ["Next.js", "Express", "PostgreSQL"],
+    },
+  ],
+  certifications: ["AWS Certified Cloud Practitioner"],
 };
 
 const mockGlobal = globalThis as typeof globalThis & {
@@ -75,6 +124,11 @@ function setMockStore(store: MockResume[]): void {
 
 export function resetMockResume(): void {
   setMockStore([]);
+}
+
+// Store entries are shared objects, so changes to the result are kept.
+export function findMockResume(resumeId: string): MockResume | undefined {
+  return getMockStore().find((item) => item.resume.id === resumeId);
 }
 
 async function request(
@@ -339,13 +393,18 @@ export async function extractResume(
       };
     }
 
+    item.extraction = {
+      parseStatus: "COMPLETED",
+      parsedJson: MOCK_PARSED_RESUME,
+    };
+
     return {
       ok: true,
       resume: {
         ...item.resume,
         parseStatus: "COMPLETED",
         parsedAt: new Date().toISOString(),
-        parsedJson: {},
+        parsedJson: MOCK_PARSED_RESUME,
       },
     };
   }

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  extractResume,
   fetchResumeFile,
   loadResumes,
   removeResume,
@@ -25,6 +26,7 @@ import {
 } from "@/app/api/resume/route";
 
 import { GET as GET_FILE } from "@/app/api/resume/file/route";
+import { POST as EXTRACT_RESUME } from "@/app/api/resume/extract/route";
 
 vi.mock("@/lib/resume/resume-session", () => ({
   resumeSessionToken: vi.fn(),
@@ -35,6 +37,7 @@ vi.mock("@/lib/resume/resume-api", () => ({
   uploadResume: vi.fn(),
   removeResume: vi.fn(),
   fetchResumeFile: vi.fn(),
+  extractResume: vi.fn(),
 }));
 
 const RESUME = {
@@ -347,3 +350,122 @@ describe("GET /api/resume/file", () => {
     expect(fetchResumeFile).not.toHaveBeenCalled();
   });
 });
+
+describe("POST /api/resume/extract", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(resumeSessionToken).mockResolvedValue("id-token");
+  });
+
+  it("extracts the requested resume", async () => {
+    vi.mocked(extractResume).mockResolvedValue({
+      ok: true,
+      resume: {
+        ...RESUME,
+        parseStatus: "COMPLETED",
+        parsedAt: "2026-11-01T12:01:00.000Z",
+        parsedJson: {
+          skills: ["AWS", "Python"],
+        },
+      },
+    });
+
+    const response = await EXTRACT_RESUME(
+      new Request(
+        "http://app.test/api/resume/extract?id=resume-123",
+        {
+          method: "POST",
+        }
+      )
+    );
+
+    expect(response.status).toBe(200);
+
+    expect(extractResume).toHaveBeenCalledWith(
+      "id-token",
+      "resume-123"
+    );
+
+    expect(await response.json()).toEqual({
+      resume: {
+        ...RESUME,
+        parseStatus: "COMPLETED",
+        parsedAt: "2026-11-01T12:01:00.000Z",
+        parsedJson: {
+          skills: ["AWS", "Python"],
+        },
+      },
+    });
+  });
+
+  it("requires a resume id", async () => {
+    const response = await EXTRACT_RESUME(
+      new Request(
+        "http://app.test/api/resume/extract",
+        {
+          method: "POST",
+        }
+      )
+    );
+
+    expect(response.status).toBe(400);
+    expect(extractResume).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the resume does not exist", async () => {
+    vi.mocked(extractResume).mockResolvedValue({
+      ok: false,
+      reason: "not_found",
+    });
+
+    const response = await EXTRACT_RESUME(
+      new Request(
+        "http://app.test/api/resume/extract?id=resume-123",
+        {
+          method: "POST",
+        }
+      )
+    );
+
+    expect(response.status).toBe(404);
+    expect((await response.json()).code).toBe("not_found");
+  });
+
+  it("returns 500 when extraction fails", async () => {
+    vi.mocked(extractResume).mockResolvedValue({
+      ok: false,
+      reason: "extraction_failed",
+    });
+
+    const response = await EXTRACT_RESUME(
+      new Request(
+        "http://app.test/api/resume/extract?id=resume-123",
+        {
+          method: "POST",
+        }
+      )
+    );
+
+    expect(response.status).toBe(500);
+    expect((await response.json()).code).toBe(
+      "extraction_failed"
+    );
+  });
+
+  it("requires sign-in", async () => {
+    vi.mocked(resumeSessionToken).mockResolvedValue(null);
+
+    const response = await EXTRACT_RESUME(
+      new Request(
+        "http://app.test/api/resume/extract?id=resume-123",
+        {
+          method: "POST",
+        }
+      )
+    );
+
+    expect(response.status).toBe(401);
+    expect(extractResume).not.toHaveBeenCalled();
+  });
+});
+

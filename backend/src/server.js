@@ -26,6 +26,8 @@ const { createResumeRouter } = require("./resumes/resume-routes");
 const resumeRepository = require("./resumes/resume-repository");
 const resumeStorage = require("./resumes/resume-storage");
 const resumeExtractionService = require("./resumes/resume-extraction-service");
+const { createResumeReviewRouter } = require("./resumes/resume-review-routes");
+const resumeReviewRepository = require("./resumes/resume-review-repository");
 
 const app = express();
 app.disable("x-powered-by");
@@ -324,6 +326,14 @@ app.use(
     repository: resumeRepository,
     storage: resumeStorage,
     extractionService: resumeExtractionService,
+  })
+);
+
+// Review Resume Information (Issue #08). Routes are in resumes/resume-review-routes.js.
+app.use(
+  createResumeReviewRouter({
+    requireActiveUser,
+    repository: resumeReviewRepository,
   })
 );
 

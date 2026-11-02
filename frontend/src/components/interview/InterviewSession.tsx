@@ -1,63 +1,79 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Bot, Briefcase, Code, Mic, Paperclip, PhoneOff, Send, User } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Bot,
+  Briefcase,
+  Code,
+  Mic,
+  Paperclip,
+  PhoneOff,
+  Send,
+  User,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ActiveInterviewSession, InterviewMessage } from "@/types/interview";
 import { sessionSubtitle } from "@/lib/interview/interview-header";
+import type {
+  ActiveInterviewSession,
+  InterviewMessage,
+} from "@/types/interview";
 
-// The interview session screen. The mode picked on the setup page decides which body shows
-// (Text Chat -> chat, Voice Only -> voice, Video Mockup -> avatar); the header is shared.
-// Candidate messages are still local-only; saving them needs a messages endpoint (separate story).
+// Presentational interview screen. The page owns fetching, the timer and
+// completion; everything arrives here as props. The session's mode decides
+// which body shows (text -> chat, voice -> voice, avatar -> avatar).
 
 const INTERVIEWER_NAME = "Interview Bot";
-const END_SESSION_PATH = "/interviews";
 const TECHNICAL_FOCUS = ["technical", "system-design"];
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-// Counts down from the backend's estimate. A reload re-reads the backend's value.
-function useMinutesRemaining(initial?: number): number | undefined {
-  const [minutes, setMinutes] = useState(initial);
-  useEffect(() => {
-    if (initial === undefined) return;
-    const id = setInterval(() => {
-      setMinutes((m) => (m === undefined ? m : Math.max(0, m - 1)));
-    }, 60_000);
-    return () => clearInterval(id);
-  }, [initial]);
-  return minutes;
-}
+export type InterviewSessionProps = {
+  session: ActiveInterviewSession;
+  messages: InterviewMessage[];
+  input: string;
+  setInput: (value: string) => void;
+  onSend: () => void | Promise<void>;
+  onEnd: () => void;
+  sending: boolean;
+  ending: boolean;
+  error: string | null;
+  minutesRemaining?: number;
+};
 
-export default function InterviewSession({ session }: { session: ActiveInterviewSession }) {
-  const router = useRouter();
-  const [messages, setMessages] = useState<InterviewMessage[]>(session.messages);
-  const [input, setInput] = useState("");
+export default function InterviewSession({
+  session,
+  messages,
+  input,
+  setInput,
+  onSend,
+  onEnd,
+  sending,
+  ending,
+  error,
+  minutesRemaining,
+}: InterviewSessionProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const minutesRemaining = useMinutesRemaining(session.estimatedMinutesRemaining);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = () => {
-    const text = input.trim();
-    if (!text) return;
-    setMessages((prev) => [
-      ...prev,
-      { id: Date.now().toString(), role: "candidate", content: text, timestamp: new Date() },
-    ]);
-    setInput("");
-  };
-
-  const questionNumber = messages.filter((m) => m.role === "interviewer").length;
+  const ended = session.status !== "ACTIVE";
+  const composerDisabled = ended || ending;
+  const questionNumber = messages.filter(
+    (m) => m.role === "interviewer",
+  ).length;
 
   return (
     <div className="flex h-screen flex-col bg-app text-primary">
-      <SessionHeader session={session} onEnd={() => router.push(END_SESSION_PATH)} />
+      <SessionHeader
+        session={session}
+        ended={ended}
+        ending={ending}
+        onEnd={onEnd}
+      />
 
       <div className="min-h-0 flex-1">
         {session.mode === "text" && (
@@ -65,16 +81,28 @@ export default function InterviewSession({ session }: { session: ActiveInterview
             messages={messages}
             input={input}
             setInput={setInput}
-            onSend={handleSend}
+            onSend={onSend}
+            sending={sending}
+            disabled={composerDisabled}
+            error={error}
             messagesEndRef={messagesEndRef}
             questionNumber={questionNumber}
             totalQuestions={session.totalQuestions}
             minutesRemaining={minutesRemaining}
           />
         )}
+
         {session.mode === "voice" && <VoiceMode />}
+
         {session.mode === "avatar" && (
-          <AvatarMode input={input} setInput={setInput} onSend={handleSend} />
+          <AvatarMode
+            input={input}
+            setInput={setInput}
+            onSend={onSend}
+            sending={sending}
+            disabled={composerDisabled}
+            error={error}
+          />
         )}
       </div>
     </div>
@@ -85,12 +113,17 @@ export default function InterviewSession({ session }: { session: ActiveInterview
 
 function SessionHeader({
   session,
+  ended,
+  ending,
   onEnd,
 }: {
   session: ActiveInterviewSession;
+  ended: boolean;
+  ending: boolean;
   onEnd: () => void;
 }) {
   const Icon = TECHNICAL_FOCUS.includes(session.focusArea) ? Code : Briefcase;
+
   return (
     <header className="flex items-center justify-between gap-4 border-b border-line-subtle bg-card px-6 py-3">
       <div className="flex min-w-0 items-center gap-3">
@@ -98,17 +131,30 @@ function SessionHeader({
           <Icon className="h-5 w-5 text-secondary" aria-hidden />
         </div>
         <div className="min-w-0">
-          <h1 className="truncate text-sm font-semibold text-primary">{session.title}</h1>
-          <p className="truncate font-mono text-xs text-secondary">{sessionSubtitle(session)}</p>
+          <h1 className="truncate text-sm font-semibold text-primary">
+            {session.title}
+          </h1>
+          <p className="truncate font-mono text-xs text-secondary">
+            {sessionSubtitle(session)}
+          </p>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={onEnd}
-        className="inline-flex shrink-0 items-center gap-2 rounded-full bg-error-text px-6 py-3 text-sm font-semibold text-inverse transition-opacity hover:opacity-90"
-      >
-        End Session
-      </button>
+
+      {ended ? (
+        <span className="shrink-0 rounded-full bg-tinted px-4 py-2 text-sm font-semibold text-secondary">
+          Interview complete
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={onEnd}
+          disabled={ending}
+          className="inline-flex shrink-0 items-center gap-2 rounded-full bg-error-text px-6 py-3 text-sm font-semibold text-inverse transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <PhoneOff className="h-4 w-4" aria-hidden />
+          {ending ? "Ending..." : "End Session"}
+        </button>
+      )}
     </header>
   );
 }
@@ -143,7 +189,9 @@ function MessageRow({ msg }: { msg: InterviewMessage }) {
         <BotAvatar />
         <div className="min-w-0">
           <div className="mb-1.5 flex items-baseline gap-2">
-            <span className="text-sm font-semibold text-primary">{INTERVIEWER_NAME}</span>
+            <span className="text-sm font-semibold text-primary">
+              {INTERVIEWER_NAME}
+            </span>
             <MessageTime date={msg.timestamp} />
           </div>
           <div className="whitespace-pre-wrap rounded-xl border border-line-subtle bg-card px-5 py-4 text-base leading-relaxed text-primary">
@@ -171,11 +219,17 @@ function ChatComposer({
   input,
   setInput,
   onSend,
+  sending,
+  disabled,
 }: {
   input: string;
   setInput: (v: string) => void;
-  onSend: () => void;
+  onSend: () => void | Promise<void>;
+  sending: boolean;
+  disabled: boolean;
 }) {
+  const blocked = sending || disabled;
+
   return (
     <div className="flex items-center gap-3 rounded-xl border border-line bg-card px-4 py-3 focus-within:border-input-focus focus-within:ring-2 focus-within:ring-focus-ring/30">
       {/* Attachments aren't supported yet, so this is shown but disabled. */}
@@ -188,25 +242,46 @@ function ChatComposer({
       >
         <Paperclip className="h-5 w-5" />
       </button>
+
       <input
         type="text"
         value={input}
+        disabled={blocked}
         onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && onSend()}
-        placeholder="Type your response..."
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            void onSend();
+          }
+        }}
+        placeholder={
+          disabled ? "This interview has ended." : "Type your response..."
+        }
         aria-label="Type your response"
-        className="min-w-0 flex-1 bg-transparent text-base text-primary placeholder:text-placeholder focus:outline-none"
+        className="min-w-0 flex-1 bg-transparent text-base text-primary placeholder:text-placeholder focus:outline-none disabled:cursor-not-allowed"
       />
+
       <button
         type="button"
-        onClick={onSend}
-        disabled={!input.trim()}
+        onClick={() => void onSend()}
+        disabled={blocked || !input.trim()}
         aria-label="Send response"
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cta text-inverse transition-colors hover:bg-cta-hover active:bg-cta-pressed disabled:cursor-not-allowed disabled:bg-cta-disabled"
       >
         <Send className="h-5 w-5" />
       </button>
     </div>
+  );
+}
+
+function ErrorNote({ message }: { message: string | null }) {
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <p role="alert" className="mb-2 px-1 text-sm text-error">
+      {message}
+    </p>
   );
 }
 
@@ -240,6 +315,9 @@ function TextMode({
   input,
   setInput,
   onSend,
+  sending,
+  disabled,
+  error,
   messagesEndRef,
   questionNumber,
   totalQuestions,
@@ -248,7 +326,10 @@ function TextMode({
   messages: InterviewMessage[];
   input: string;
   setInput: (v: string) => void;
-  onSend: () => void;
+  onSend: () => void | Promise<void>;
+  sending: boolean;
+  disabled: boolean;
+  error: string | null;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   questionNumber: number;
   totalQuestions?: number;
@@ -271,7 +352,14 @@ function TextMode({
       </div>
 
       <div className="px-6 pb-3 pt-2">
-        <ChatComposer input={input} setInput={setInput} onSend={onSend} />
+        <ErrorNote message={error} />
+        <ChatComposer
+          input={input}
+          setInput={setInput}
+          onSend={onSend}
+          sending={sending}
+          disabled={disabled}
+        />
         <SessionFooter
           questionNumber={questionNumber}
           totalQuestions={totalQuestions}
@@ -298,7 +386,7 @@ function VoiceMode() {
               key={i}
               className={cn(
                 "w-1.5 rounded-full transition-all duration-300",
-                isRecording ? "animate-pulse bg-cta" : "bg-line-strong"
+                isRecording ? "animate-pulse bg-cta" : "bg-line-strong",
               )}
               style={{ height: `${height}%` }}
             />
@@ -309,15 +397,18 @@ function VoiceMode() {
       {/* Mic Button */}
       <button
         type="button"
-        onClick={() => setIsRecording(!isRecording)}
+        onClick={() => setIsRecording((current) => !current)}
         aria-label={isRecording ? "Stop recording" : "Start recording"}
         className={cn(
           "flex h-16 w-16 items-center justify-center rounded-full transition-colors",
-          isRecording ? "bg-error-bg text-error" : "bg-tinted text-primary hover:bg-hover"
+          isRecording
+            ? "bg-error-bg text-error"
+            : "bg-tinted text-primary hover:bg-hover",
         )}
       >
         <Mic className="h-7 w-7" />
       </button>
+
       <p className="text-sm text-secondary">
         {isRecording ? "Recording... tap to stop" : "Tap to start recording"}
       </p>
@@ -331,10 +422,16 @@ function AvatarMode({
   input,
   setInput,
   onSend,
+  sending,
+  disabled,
+  error,
 }: {
   input: string;
   setInput: (v: string) => void;
-  onSend: () => void;
+  onSend: () => void | Promise<void>;
+  sending: boolean;
+  disabled: boolean;
+  error: string | null;
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -345,7 +442,14 @@ function AvatarMode({
       </div>
 
       <div className="px-6 pb-3 pt-2">
-        <ChatComposer input={input} setInput={setInput} onSend={onSend} />
+        <ErrorNote message={error} />
+        <ChatComposer
+          input={input}
+          setInput={setInput}
+          onSend={onSend}
+          sending={sending}
+          disabled={disabled}
+        />
       </div>
     </div>
   );

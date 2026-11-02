@@ -1,20 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, Suspense } from "react";
-import { MessageSquare, Mic, User, MoreVertical, Send } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { cn } from "@/lib/utils";
+import InterviewSession from "@/components/interview/InterviewSession";
 import type {
   ActiveInterviewSession,
   InterviewMessage,
-  InterviewMode,
 } from "@/types/interview";
 
 export default function InterviewSessionPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex h-screen items-center justify-center">
+        <div className="flex h-screen items-center justify-center bg-app text-secondary">
           Loading...
         </div>
       }
@@ -29,17 +27,19 @@ function InterviewSessionContent() {
   const sessionId = searchParams.get("id");
 
   const [session, setSession] = useState<ActiveInterviewSession | null>(null);
-  const [mode, setMode] = useState<InterviewMode>("text");
   const [messages, setMessages] = useState<InterviewMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [ending, setEnding] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(30 * 60);
   const [loading, setLoading] = useState(Boolean(sessionId));
-  const [error, setError] = useState<string | null>(
+  // loadError replaces the whole page; actionError only shows above the composer
+  const [loadError, setLoadError] = useState<string | null>(
     sessionId ? null : "Interview session id is missing.",
   );
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const timeLimitFiredRef = useRef(false);
   const sessionStatusRef = useRef<"ACTIVE" | "COMPLETED" | "ABANDONED">(
     "ACTIVE",
   );
@@ -55,7 +55,7 @@ function InterviewSessionContent() {
     async function loadSession() {
       try {
         setLoading(true);
-        setError(null);
+        setLoadError(null);
 
         const response = await fetch(
           `/api/interview/session?id=${encodeURIComponent(activeSessionId)}`,
@@ -88,7 +88,6 @@ function InterviewSessionContent() {
         };
 
         setSession(loadedSession);
-        setMode(loadedSession.mode);
         setMessages(loadedSession.messages);
 
         const remainingSeconds = Math.max(
@@ -99,14 +98,14 @@ function InterviewSessionContent() {
         );
 
         setTimeRemaining(remainingSeconds);
-      } catch (loadError) {
+      } catch (err) {
         if (cancelled) {
           return;
         }
 
-        setError(
-          loadError instanceof Error
-            ? loadError.message
+        setLoadError(
+          err instanceof Error
+            ? err.message
             : "Unable to load interview session.",
         );
       } finally {
@@ -161,12 +160,6 @@ function InterviewSessionContent() {
     };
   }, [sessionId]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: "smooth",
-    });
-  }, [messages]);
-
   const handleSend = async () => {
     const content = input.trim();
 
@@ -175,7 +168,7 @@ function InterviewSessionContent() {
     }
 
     setSending(true);
-    setError(null);
+    setActionError(null);
 
     try {
       const response = await fetch("/api/interview/session/message", {
@@ -224,10 +217,10 @@ function InterviewSessionContent() {
       }
 
       setInput("");
-    } catch (sendError) {
-      setError(
-        sendError instanceof Error
-          ? sendError.message
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err.message
           : "Unable to submit interview response.",
       );
     } finally {
@@ -242,7 +235,7 @@ function InterviewSessionContent() {
       }
 
       setEnding(true);
-      setError(null);
+      setActionError(null);
 
       try {
         const response = await fetch("/api/interview/session/complete", {
@@ -299,11 +292,9 @@ function InterviewSessionContent() {
 
         setTimeRemaining(0);
         setInput("");
-      } catch (completeError) {
-        setError(
-          completeError instanceof Error
-            ? completeError.message
-            : "Unable to end interview.",
+      } catch (err) {
+        setActionError(
+          err instanceof Error ? err.message : "Unable to end interview.",
         );
       } finally {
         setEnding(false);
@@ -325,7 +316,8 @@ function InterviewSessionContent() {
 
       setTimeRemaining(remaining);
 
-      if (remaining === 0) {
+      if (remaining === 0 && !timeLimitFiredRef.current) {
+        timeLimitFiredRef.current = true;
         void completeInterview("TIME_LIMIT");
       }
     };
@@ -339,307 +331,44 @@ function InterviewSessionContent() {
     };
   }, [session, completeInterview]);
 
-  const interviewEnded = session?.status !== "ACTIVE";
-
-  const minutes = Math.floor(timeRemaining / 60);
-
-  const seconds = timeRemaining % 60;
-
-  const formattedTime = `${minutes}:${seconds.toString().padStart(2, "0")}`;
-
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center bg-app text-secondary">
         Loading interview...
       </div>
     );
   }
 
-  if (error || !session) {
+  if (loadError || !session) {
     return (
-      <div className="flex h-screen items-center justify-center px-6 text-center">
+      <div className="flex h-screen items-center justify-center bg-app px-6 text-center">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">
+          <h1 className="text-lg font-semibold text-primary">
             Unable to load interview
           </h1>
-
-          <p className="mt-2 text-sm text-gray-500">
-            {error || "The interview session could not be found."}
+          <p className="mt-2 text-sm text-secondary">
+            {loadError || "The interview session could not be found."}
           </p>
         </div>
       </div>
     );
   }
 
-  const modes: {
-    value: InterviewMode;
-    icon: typeof MessageSquare;
-  }[] = [
-    {
-      value: "text",
-      icon: MessageSquare,
-    },
-    {
-      value: "voice",
-      icon: Mic,
-    },
-    {
-      value: "avatar",
-      icon: User,
-    },
-  ];
+  const minutesRemaining =
+    session.status === "ACTIVE" ? Math.ceil(timeRemaining / 60) : undefined;
 
   return (
-    <div className="flex h-screen flex-col">
-      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-        <h1 className="text-lg font-semibold text-gray-900">{session.title}</h1>
-
-        <div className="flex items-center gap-2">
-          <div
-            className={cn(
-              "rounded-lg border px-3 py-2 text-sm font-medium tabular-nums",
-              timeRemaining <= 300 && !interviewEnded
-                ? "border-red-200 bg-red-50 text-red-600"
-                : "border-gray-200 bg-white text-gray-700",
-            )}
-          >
-            {interviewEnded ? "Interview complete" : formattedTime}
-          </div>
-
-          {!interviewEnded && (
-            <button
-              type="button"
-              onClick={() => void completeInterview("USER_ENDED")}
-              disabled={ending}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {ending ? "Ending..." : "End Interview"}
-            </button>
-          )}
-
-          <div className="flex overflow-hidden rounded-lg border border-gray-200">
-            {modes.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                onClick={() => setMode(item.value)}
-                className={cn(
-                  "flex h-9 w-12 items-center justify-center transition-colors",
-                  mode === item.value
-                    ? "bg-gray-700 text-white"
-                    : "bg-white text-gray-600 hover:bg-gray-100",
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-              </button>
-            ))}
-          </div>
-
-          <button type="button" className="rounded p-2 hover:bg-gray-100">
-            <MoreVertical className="h-4 w-4 text-gray-600" />
-          </button>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-hidden">
-        {mode === "text" && (
-          <TextMode
-            messages={messages}
-            input={input}
-            setInput={setInput}
-            onSend={handleSend}
-            sending={sending}
-            disabled={interviewEnded || ending}
-            messagesEndRef={messagesEndRef}
-          />
-        )}
-
-        {mode === "voice" && <VoiceMode />}
-
-        {mode === "avatar" && (
-          <AvatarMode
-            input={input}
-            setInput={setInput}
-            onSend={handleSend}
-            sending={sending}
-            disabled={interviewEnded || ending}
-          />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function TextMode({
-  messages,
-  input,
-  setInput,
-  onSend,
-  sending,
-  disabled,
-  messagesEndRef,
-}: {
-  messages: InterviewMessage[];
-  input: string;
-  setInput: (value: string) => void;
-  onSend: () => void | Promise<void>;
-  sending: boolean;
-  disabled: boolean;
-  messagesEndRef: React.RefObject<HTMLDivElement | null>;
-}) {
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex-1 space-y-6 overflow-y-auto p-6">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={cn(
-              "flex max-w-[80%] items-start gap-3",
-              message.role === "candidate" ? "ml-auto flex-row-reverse" : "",
-            )}
-          >
-            <div className="h-8 w-8 shrink-0 rounded-full bg-gray-200" />
-
-            <div
-              className={cn(
-                "rounded-2xl px-4 py-3 text-sm leading-relaxed",
-                message.role === "interviewer"
-                  ? "bg-gray-100 text-gray-900"
-                  : "bg-gray-700 text-white",
-              )}
-            >
-              {message.content}
-            </div>
-          </div>
-        ))}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      <div className="border-t border-gray-200 p-4">
-        <div className="flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-3">
-          <input
-            type="text"
-            value={input}
-            disabled={sending || disabled}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                onSend();
-              }
-            }}
-            placeholder={
-              disabled ? "This interview has ended." : "Write a message..."
-            }
-            className="flex-1 bg-transparent text-sm focus:outline-none"
-          />
-
-          <button
-            type="button"
-            onClick={onSend}
-            disabled={sending || disabled}
-            className="rounded-lg p-2 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Send className="h-4 w-4 text-gray-600" />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function VoiceMode() {
-  const [isRecording, setIsRecording] = useState(false);
-
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-8">
-      <div className="flex h-32 items-center justify-center gap-[2px]">
-        {Array.from({
-          length: 40,
-        }).map((_, index) => {
-          const height = ((index * 37) % 80) + 20;
-
-          return (
-            <div
-              key={index}
-              className={cn(
-                "w-1.5 rounded-full transition-all duration-300",
-                isRecording ? "animate-pulse bg-gray-900" : "bg-gray-400",
-              )}
-              style={{
-                height: `${height}%`,
-              }}
-            />
-          );
-        })}
-      </div>
-
-      <button
-        type="button"
-        onClick={() => setIsRecording((current) => !current)}
-        className={cn(
-          "flex h-16 w-16 items-center justify-center rounded-full transition-colors",
-          isRecording
-            ? "bg-red-100 text-red-600"
-            : "bg-gray-100 text-gray-700 hover:bg-gray-200",
-        )}
-      >
-        <Mic className="h-7 w-7" />
-      </button>
-
-      <p className="text-sm text-gray-500">
-        {isRecording ? "Recording... tap to stop" : "Tap to start recording"}
-      </p>
-    </div>
-  );
-}
-
-function AvatarMode({
-  input,
-  setInput,
-  onSend,
-  sending,
-  disabled,
-}: {
-  input: string;
-  setInput: (value: string) => void;
-  onSend: () => void | Promise<void>;
-  sending: boolean;
-  disabled: boolean;
-}) {
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex flex-1 items-center justify-center">
-        <div className="flex h-[300px] w-[500px] items-center justify-center rounded-xl border border-gray-200 bg-gray-100">
-          <User className="h-20 w-20 text-gray-400" />
-        </div>
-      </div>
-
-      <div className="border-t border-gray-200 p-4">
-        <div className="flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-3">
-          <input
-            type="text"
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                onSend();
-              }
-            }}
-            placeholder="Write a message..."
-            className="flex-1 bg-transparent text-sm focus:outline-none"
-          />
-
-          <button
-            type="button"
-            onClick={onSend}
-            disabled={sending || disabled}
-            className="rounded-lg p-2 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Send className="h-4 w-4 text-gray-600" />
-          </button>
-        </div>
-      </div>
-    </div>
+    <InterviewSession
+      session={session}
+      messages={messages}
+      input={input}
+      setInput={setInput}
+      onSend={handleSend}
+      onEnd={() => void completeInterview("USER_ENDED")}
+      sending={sending}
+      ending={ending}
+      error={actionError}
+      minutesRemaining={minutesRemaining}
+    />
   );
 }

@@ -37,17 +37,17 @@ export default function InterviewHistoryDetailPage() {
     );
 
   const [loading, setLoading] =
-    useState(true);
+    useState(Boolean(sessionId));
 
   const [error, setError] =
-    useState<string | null>(null);
+    useState<string | null>(
+      sessionId
+        ? null
+        : "Interview session id is missing."
+    );
 
   useEffect(() => {
     if (!sessionId) {
-      setError(
-        "Interview session id is missing."
-      );
-      setLoading(false);
       return;
     }
 

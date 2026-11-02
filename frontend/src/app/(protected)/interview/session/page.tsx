@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -65,10 +66,14 @@ function InterviewSessionContent() {
     useState(30 * 60);
 
   const [loading, setLoading] =
-    useState(true);
+    useState(Boolean(sessionId));
 
   const [error, setError] =
-    useState<string | null>(null);
+    useState<string | null>(
+      sessionId
+        ? null
+        : "Interview session id is missing."
+    );
 
   const messagesEndRef =
     useRef<HTMLDivElement>(null);
@@ -80,8 +85,6 @@ function InterviewSessionContent() {
 
   useEffect(() => {
     if (!sessionId) {
-      setError("Interview session id is missing.");
-      setLoading(false);
       return;
     }
 
@@ -181,7 +184,7 @@ function InterviewSessionContent() {
       sessionStatusRef.current =
         session.status;
     }
-  }, [session?.status]);
+  }, [session]);
 
   useEffect(() => {
     if (!sessionId) {
@@ -318,7 +321,7 @@ function InterviewSessionContent() {
     }
   };
 
-  const completeInterview = async (
+  const completeInterview = useCallback(async (
     reason: "USER_ENDED" | "TIME_LIMIT"
   ) => {
     if (
@@ -414,7 +417,7 @@ function InterviewSessionContent() {
     } finally {
       setEnding(false);
     }
-  };
+  }, [sessionId, session, ending]);
 
   useEffect(() => {
     if (
@@ -459,9 +462,8 @@ function InterviewSessionContent() {
       window.clearInterval(timer);
     };
   }, [
-    session?.id,
-    session?.status,
-    session?.endsAt,
+    session,
+    completeInterview,
   ]);
 
   const interviewEnded =

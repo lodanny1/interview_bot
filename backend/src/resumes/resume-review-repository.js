@@ -1,6 +1,6 @@
 // Review Resume Information (Issue #08).
 // Database access for the reviewed copy of a resume's extracted information.
-// The columns are added by backend/sql/004_add_resume_review.sql.
+// The columns are added by backend/sql/006_add_resume_review.sql.
 
 const { createPool } = require("../db/postgres");
 

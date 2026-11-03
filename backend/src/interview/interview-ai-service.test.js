@@ -2,11 +2,17 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const aiService = require("../ai/ai-service");
+const resumeContextService = require("./resume-context-service");
 
 const originalConverse = aiService.converse;
+const originalGetResumeContext =
+  resumeContextService.getResumeContext;
 
 test.afterEach(() => {
   aiService.converse = originalConverse;
+  resumeContextService.getResumeContext =
+    originalGetResumeContext;
+
   delete require.cache[
     require.resolve("./interview-ai-service")
   ];
@@ -152,6 +158,169 @@ test("generateFollowUpQuestion rejects empty conversation history", async () => 
         conversation: [],
       }),
     /Conversation history is required/
+  );
+});
+
+test("generateResumePersonalizedQuestion uses the selected resume context", async () => {
+  let capturedAiInput;
+  let capturedResumeInput;
+
+  resumeContextService.getResumeContext =
+    async (input) => {
+      capturedResumeInput = input;
+
+      return {
+        resumeId: "resume-123",
+        context: {
+          summary:
+            "AWS certified software engineer",
+          skills: [
+            "AWS",
+            "Python",
+            "Docker",
+          ],
+          education: [],
+          experience: [
+            {
+              company: "Amazon Web Services",
+              role:
+                "Cloud Support Engineer Intern",
+              description: [
+                "Deployed an accessibility assistant on ECS Fargate",
+              ],
+            },
+          ],
+          projects: [],
+          certifications: [
+            "AWS Certified Solutions Architect - Associate",
+          ],
+        },
+      };
+    };
+
+  aiService.converse = async (input) => {
+    capturedAiInput = input;
+
+    return {
+      text:
+        "You mention deploying an accessibility assistant on ECS Fargate. What design tradeoffs did you make?",
+      stopReason: "end_turn",
+      usage: null,
+    };
+  };
+
+  delete require.cache[
+    require.resolve("./interview-ai-service")
+  ];
+
+  const {
+    generateResumePersonalizedQuestion,
+  } = require("./interview-ai-service");
+
+  const result =
+    await generateResumePersonalizedQuestion({
+      userId: "user-123",
+      resumeId: "resume-123",
+      role: "Solutions Architect",
+      company: "Example Corp",
+      interviewType: "technical",
+    });
+
+  assert.deepEqual(
+    capturedResumeInput,
+    {
+      userId: "user-123",
+      resumeId: "resume-123",
+    }
+  );
+
+  assert.match(
+    capturedAiInput.systemPrompt,
+    /Solutions Architect/
+  );
+
+  assert.match(
+    capturedAiInput.systemPrompt,
+    /AWS/
+  );
+
+  assert.match(
+    capturedAiInput.systemPrompt,
+    /ECS Fargate/
+  );
+
+  assert.doesNotMatch(
+    capturedAiInput.systemPrompt,
+    /email/
+  );
+
+  assert.match(
+    capturedAiInput.messages[0].content,
+    /specifically grounded in the candidate's resume/
+  );
+
+  assert.match(
+    result.text,
+    /ECS Fargate/
+  );
+});
+
+test("generateResumePersonalizedQuestion validates required ids", async () => {
+  const {
+    generateResumePersonalizedQuestion,
+  } = require("./interview-ai-service");
+
+  await assert.rejects(
+    () =>
+      generateResumePersonalizedQuestion({
+        resumeId: "resume-123",
+      }),
+    /userId is required/
+  );
+
+  await assert.rejects(
+    () =>
+      generateResumePersonalizedQuestion({
+        userId: "user-123",
+      }),
+    /resumeId is required/
+  );
+});
+
+test("generateResumePersonalizedQuestion propagates resume context errors", async () => {
+  resumeContextService.getResumeContext =
+    async () => {
+      const error = new Error(
+        "Resume has not been successfully parsed."
+      );
+
+      error.code = "RESUME_NOT_PARSED";
+
+      throw error;
+    };
+
+  delete require.cache[
+    require.resolve("./interview-ai-service")
+  ];
+
+  const {
+    generateResumePersonalizedQuestion,
+  } = require("./interview-ai-service");
+
+  await assert.rejects(
+    () =>
+      generateResumePersonalizedQuestion({
+        userId: "user-123",
+        resumeId: "resume-123",
+      }),
+    (error) => {
+      assert.equal(
+        error.code,
+        "RESUME_NOT_PARSED"
+      );
+
+      return true;
+    }
   );
 });
 

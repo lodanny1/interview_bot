@@ -1,4 +1,7 @@
 const { converse } = require("../ai/ai-service");
+const {
+  getResumeContext,
+} = require("./resume-context-service");
 
 // Role & Company Knowledge Retrieval (Issue #16) adds two optional inputs:
 // - knowledgeContext: the <knowledge_base> block from retrieveInterviewKnowledge
@@ -145,7 +148,7 @@ async function generateOpeningQuestion({
       {
         role: "user",
         content:
-          "Begin the interview by asking the candidate one appropriate opening question.",
+          "Begin with one short, professional greeting or welcome sentence, then ask the candidate exactly one appropriate opening question.",
       },
     ],
     maxTokens: 250,
@@ -194,8 +197,108 @@ async function generateFollowUpQuestion({
   return response;
 }
 
+async function generateResumePersonalizedQuestion({
+  userId,
+  resumeId,
+  role,
+  company,
+  interviewType,
+}) {
+  if (!userId) {
+    throw new Error("userId is required");
+  }
+
+  if (!resumeId) {
+    throw new Error("resumeId is required");
+  }
+
+  const {
+    context,
+  } = await getResumeContext({
+    userId,
+    resumeId,
+  });
+
+  const resumeContext = JSON.stringify(
+    context,
+    null,
+    2
+  );
+
+  const systemPrompt = buildSystemPrompt({
+    role,
+    company,
+    interviewType,
+    resumeContext,
+  });
+
+  const response = await converse({
+    systemPrompt,
+    messages: [
+      {
+        role: "user",
+        content:
+          "Begin with one short, professional greeting or welcome sentence, then ask one interview question that is specifically grounded in the candidate's resume. " +
+          "Prefer a concrete experience, project, skill, certification, or accomplishment from the resume. " +
+          "Do not invent details. Ask only one question and do not provide feedback or an answer.",
+      },
+    ],
+    maxTokens: 250,
+  });
+
+  return response;
+}
+
+
+async function generateClosingStatement({
+  role,
+  company,
+  interviewType,
+  conversation,
+}) {
+  if (
+    !Array.isArray(conversation) ||
+    conversation.length === 0
+  ) {
+    throw new Error(
+      "conversation is required"
+    );
+  }
+
+  const systemPrompt = buildSystemPrompt({
+    role,
+    company,
+    interviewType,
+    resumeContext: null,
+  });
+
+  const response = await converse({
+    systemPrompt:
+      systemPrompt +
+      "\n\nThe interview time limit has now been reached. " +
+      "Do not ask another interview question. " +
+      "Give a brief, natural closing as the interviewer. " +
+      "If the candidate was in the middle of discussing something, " +
+      "you may acknowledge that you are short on time. " +
+      "Thank the candidate for their time and clearly indicate the interview is ending.",
+    messages: [
+      ...conversation,
+      {
+        role: "user",
+        content:
+          "The interview has reached its time limit. End the interview naturally now.",
+      },
+    ],
+    maxTokens: 160,
+  });
+
+  return response;
+}
+
 module.exports = {
   buildSystemPrompt,
   generateOpeningQuestion,
   generateFollowUpQuestion,
+  generateResumePersonalizedQuestion,
+  generateClosingStatement,
 };

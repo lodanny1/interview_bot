@@ -8,8 +8,6 @@ import {
   MessageSquare,
   Calendar,
   BarChart3,
-  Briefcase,
-  FileText,
   Plus,
   Users,
 } from "lucide-react";
@@ -37,16 +35,6 @@ const navItems = [
     icon: MessageSquare,
   },
   {
-    href: "/target-job",
-    label: "Target Job",
-    icon: Briefcase,
-  },
-  {
-    href: "/resume",
-    label: "Resume",
-    icon: FileText,
-  },
-  {
     href: "/calendar",
     label: "Calendar",
     icon: Calendar,
@@ -58,23 +46,14 @@ const navItems = [
   },
 ];
 
-export function Sidebar({
-  user,
-}: {
-  user: SidebarUser;
-}) {
+export function Sidebar({ user }: { user: SidebarUser }) {
   const pathname = usePathname();
 
   const showAdminLink = user.role === "ADMIN";
 
-  const displayName =
-    user.display_name?.trim() ||
-    user.email.split("@")[0];
+  const displayName = user.display_name?.trim() || user.email.split("@")[0];
 
-  const plan =
-    user.access_tier === "PREMIUM"
-      ? "Premium plan"
-      : "Basic plan";
+  const plan = user.access_tier === "PREMIUM" ? "Premium plan" : "Basic plan";
 
   async function handleSignOut() {
     await logoutAction();
@@ -88,9 +67,7 @@ export function Sidebar({
           <Bot className="w-6 h-6 text-white" />
         </div>
 
-        <span className="text-xl font-semibold text-primary">
-          InterviewBot
-        </span>
+        <span className="text-xl font-semibold text-primary">InterviewBot</span>
       </div>
 
       {/* Navigation */}
@@ -109,7 +86,7 @@ export function Sidebar({
                 "flex items-center gap-4 px-4 py-3 rounded-lg text-base font-medium transition-colors",
                 isActive
                   ? "bg-hover text-link border-r-4 border-cta"
-                  : "text-secondary hover:bg-hover"
+                  : "text-secondary hover:bg-hover",
               )}
             >
               <item.icon className="w-5 h-5" />
@@ -125,7 +102,7 @@ export function Sidebar({
               "flex items-center gap-4 px-4 py-3 rounded-lg text-base font-medium transition-colors",
               pathname.startsWith("/admin")
                 ? "bg-hover text-link border-r-4 border-cta"
-                : "text-secondary hover:bg-hover"
+                : "text-secondary hover:bg-hover",
             )}
           >
             <Users className="w-5 h-5" />
@@ -150,10 +127,7 @@ export function Sidebar({
         <AccountMenu
           user={{
             name: displayName,
-            plan:
-              user.role === "ADMIN"
-                ? `Admin · ${plan}`
-                : plan,
+            plan: user.role === "ADMIN" ? `Admin · ${plan}` : plan,
           }}
           onSignOut={handleSignOut}
         />

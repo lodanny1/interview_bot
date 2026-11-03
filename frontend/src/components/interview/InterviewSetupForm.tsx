@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -28,6 +28,13 @@ import {
   ROLE_LEVELS,
   type Option,
 } from "@/lib/interview/interview-options";
+import { ResumeUpload } from "@/components/resume/ResumeUpload";
+import { TargetJobForm } from "@/components/target-job/TargetJobForm";
+import type { Resume } from "@/lib/resume/resume-state";
+import type {
+  TargetJob,
+  TargetJobAction,
+} from "@/lib/target-job/target-job-form-state";
 
 const MODES: {
   value: InterviewMode;
@@ -39,13 +46,15 @@ const MODES: {
     value: "text",
     icon: MessageSquareText,
     label: "Text Chat",
-    description: "Typing-based interview. Good for drafting structured responses.",
+    description:
+      "Typing-based interview. Good for drafting structured responses.",
   },
   {
     value: "voice",
     icon: Mic,
     label: "Voice Only",
-    description: "Conversational audio. Simulates phone screening environments.",
+    description:
+      "Conversational audio. Simulates phone screening environments.",
   },
   {
     value: "avatar",
@@ -87,7 +96,13 @@ function SectionCard({
   );
 }
 
-function FieldLabel({ htmlFor, children }: { htmlFor?: string; children: React.ReactNode }) {
+function FieldLabel({
+  htmlFor,
+  children,
+}: {
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
   return (
     <label
       htmlFor={htmlFor}
@@ -136,7 +151,12 @@ function SelectField({
           onChange={(e) => onChange(e.target.value)}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
-          className={cn(fieldBase, fieldBorder(!!error), "appearance-none pr-10", !value && "text-secondary")}
+          className={cn(
+            fieldBase,
+            fieldBorder(!!error),
+            "appearance-none pr-10",
+            !value && "text-secondary",
+          )}
         >
           <option value="">{placeholder}</option>
           {options.map((o) => (
@@ -160,7 +180,7 @@ function RadioDot({ selected }: { selected: boolean }) {
     <span
       className={cn(
         "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2",
-        selected ? "border-cta" : "border-line-strong"
+        selected ? "border-cta" : "border-line-strong",
       )}
       aria-hidden
     >
@@ -191,17 +211,28 @@ function FormBanner({ state }: { state: InterviewSetupFormState }) {
 
 /* --------------------------------- Form ---------------------------------- */
 
-export default function InterviewSetupForm() {
-  const router = useRouter();
-  const [resumes, setResumes] = useState<
-    { id: string; fileName: string }[]
-  >([]);
+interface InterviewSetupFormProps {
+  initialResumes: Resume[];
+  resumeLoadError?: string;
+  initialTargetJob: TargetJob | null;
+  targetJobLoadError?: string;
+  saveTargetJobAction: TargetJobAction;
+  removeTargetJobAction: TargetJobAction;
+}
 
+export default function InterviewSetupForm({
+  initialResumes,
+  resumeLoadError,
+  initialTargetJob,
+  targetJobLoadError,
+  saveTargetJobAction,
+  removeTargetJobAction,
+}: InterviewSetupFormProps) {
+  const router = useRouter();
   const [selectedResumeId, setSelectedResumeId] = useState("");
-  const [resumesLoading, setResumesLoading] = useState(true);
   const [state, formAction, isPending] = useActionState(
     startInterviewAction,
-    INITIAL_INTERVIEW_SETUP_STATE
+    INITIAL_INTERVIEW_SETUP_STATE,
   );
   const errors = state.fieldErrors ?? {};
 
@@ -213,77 +244,10 @@ export default function InterviewSetupForm() {
   const [experience, setExperience] = useState("");
   const [focus, setFocus] = useState("");
   const [mode, setMode] = useState<InterviewMode>("voice");
-  const [jobDescription, setJobDescription] = useState("");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadSavedResumes() {
-      try {
-        const response = await fetch("/api/resume", {
-          method: "GET",
-          cache: "no-store",
-        });
-
-        if (!response.ok) {
-          return;
-        }
-
-        const body = await response.json();
-
-        if (!cancelled && Array.isArray(body?.resumes)) {
-          setResumes(
-            body.resumes
-              .filter(
-                (resume: unknown): resume is {
-                  id: string;
-                  fileName: string;
-                } =>
-                  Boolean(
-                    resume &&
-                      typeof resume === "object" &&
-                      typeof (resume as { id?: unknown }).id === "string" &&
-                      typeof (resume as { fileName?: unknown }).fileName === "string"
-                  )
-              )
-              .map(
-                (resume: {
-                  id: string;
-                  fileName: string;
-                }) => ({
-                  id: resume.id,
-                  fileName: resume.fileName,
-                })
-              )
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setResumesLoading(false);
-        }
-      }
-    }
-
-    loadSavedResumes();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
 
   return (
-    <form action={formAction} noValidate className="w-full text-primary">
-      {/* Values held in buttons rather than inputs */}
-      <input type="hidden" name="goal" value={goal} />
-      <input type="hidden" name="mode" value={mode} />
-      <input
-        type="hidden"
-        name="resumeId"
-        value={selectedResumeId}
-      />
-
-      {/* Top bar */}
+    <div className="w-full text-primary">
+      {/* Top bar. The submit button is tied to the form below via `form`. */}
       <header className="flex items-center justify-between border-b border-line-subtle bg-card px-6 py-4">
         <button
           type="button"
@@ -295,6 +259,7 @@ export default function InterviewSetupForm() {
         </button>
         <button
           type="submit"
+          form="interview-setup-form"
           disabled={isPending}
           className="inline-flex items-center gap-2 rounded-md bg-cta px-6 py-3 text-sm font-semibold text-inverse transition-colors hover:bg-cta-hover active:bg-cta-pressed disabled:cursor-not-allowed disabled:bg-cta-disabled"
         >
@@ -304,246 +269,220 @@ export default function InterviewSetupForm() {
       </header>
 
       <main className="mx-auto w-full max-w-3xl space-y-8 px-4 py-6 pb-10">
-        <FormBanner state={state} />
+        <form
+          id="interview-setup-form"
+          action={formAction}
+          noValidate
+          className="space-y-8"
+        >
+          {/* Values held in buttons rather than inputs */}
+          <input type="hidden" name="goal" value={goal} />
+          <input type="hidden" name="mode" value={mode} />
+          <input type="hidden" name="resumeId" value={selectedResumeId} />
 
-        {/* Practice Goals */}
-        <section className="px-6">
-          <h1 className="text-2xl font-medium text-primary">Practice Goals</h1>
-          <p className="mt-1 text-sm text-secondary">
-            Choose whether you want a general practice session or want to prepare for a
-            scheduled interview.
-          </p>
+          <FormBanner state={state} />
 
-          <div role="radiogroup" aria-label="Practice goal" className="mt-4 grid grid-cols-2 gap-6">
-            {(
-              [
-                {
-                  value: "general",
-                  title: "General Practice",
-                  body: "Practice freely without attaching this session to a real interview.",
-                  cta: "Start from scratch",
-                },
-                {
-                  value: "specific",
-                  title: "Prepare for a Specific Interview",
-                  body: "Use a scheduled calendar interview to prefill context and track progress.",
-                  cta: "Choose interview",
-                },
-              ] as const
-            ).map((g) => {
-              const selected = goal === g.value;
-              return (
-                <button
-                  key={g.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => setGoal(g.value)}
-                  className={cn(
-                    "rounded-xl border p-5 text-left transition-colors",
-                    selected
-                      ? "border-cta bg-info-bg"
-                      : "border-line bg-card hover:border-line-strong"
-                  )}
-                >
-                  <p className="text-sm font-semibold text-primary">{g.title}</p>
-                  <p className="mt-2 text-xs text-secondary">{g.body}</p>
-                  <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-link">
-                    {g.cta}
-                    {g.value === "specific" && <ArrowRight className="h-3 w-3" />}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
-          <FieldError id="goal-error" message={errors.goal} />
-        </section>
+          {/* Practice Goals */}
+          <section className="px-6">
+            <h1 className="text-2xl font-medium text-primary">
+              Practice Goals
+            </h1>
+            <p className="mt-1 text-sm text-secondary">
+              Choose whether you want a general practice session or want to
+              prepare for a scheduled interview.
+            </p>
 
-        {/* Interview Details */}
-        <SectionCard icon={FileText} title="Interview Details">
-          <div className="space-y-5">
-            <div>
-              <FieldLabel htmlFor="title">Interview Name*</FieldLabel>
-              <input
-                id="title"
-                name="title"
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., Senior Frontend Engineer - TechCorp"
-                aria-invalid={errors.title ? true : undefined}
-                aria-describedby={errors.title ? "title-error" : undefined}
-                className={cn(fieldBase, fieldBorder(!!errors.title), "placeholder:text-placeholder")}
-              />
-              <FieldError id="title-error" message={errors.title} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-6">
-              <SelectField
-                name="industry"
-                label="Industry"
-                value={industry}
-                onChange={setIndustry}
-                placeholder="Select Industry"
-                options={INDUSTRIES}
-                error={errors.industry}
-              />
-              <SelectField
-                name="roleLevel"
-                label="Role Level"
-                value={roleLevel}
-                onChange={setRoleLevel}
-                placeholder="Select Level"
-                options={ROLE_LEVELS}
-                error={errors.roleLevel}
-              />
-              <SelectField
-                name="experienceLevel"
-                label="Experience Level"
-                value={experience}
-                onChange={setExperience}
-                placeholder="Select Experience"
-                options={EXPERIENCE_LEVELS}
-                error={errors.experienceLevel}
-              />
-              <SelectField
-                name="focusArea"
-                label="Focus Areas*"
-                value={focus}
-                onChange={setFocus}
-                placeholder="Select Focus"
-                options={FOCUS_AREAS}
-                error={errors.focusArea}
-              />
-            </div>
-          </div>
-        </SectionCard>
-
-        {/* Simulation Mode */}
-        <SectionCard icon={SlidersHorizontal} title="Simulation Mode">
-          <p className="mb-5 text-sm text-secondary">
-            Choose how you want to interact with the AI interviewer.
-          </p>
-          <div role="radiogroup" aria-label="Simulation mode" className="grid grid-cols-3 gap-4">
-            {MODES.map((m) => {
-              const selected = mode === m.value;
-              return (
-                <button
-                  key={m.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => setMode(m.value)}
-                  className={cn(
-                    "rounded-lg border-2 p-4 text-left transition-colors",
-                    selected
-                      ? "border-cta bg-tinted"
-                      : "border-line bg-card hover:border-line-strong"
-                  )}
-                >
-                  <div className="flex items-start justify-between">
-                    <m.icon
-                      className={cn("h-6 w-6", selected ? "text-cta" : "text-secondary")}
-                      aria-hidden
-                    />
-                    <RadioDot selected={selected} />
-                  </div>
-                  <p className="mt-3 text-base font-medium text-primary">{m.label}</p>
-                  <p className="mt-1 text-sm text-secondary">{m.description}</p>
-                </button>
-              );
-            })}
-          </div>
-          <FieldError id="mode-error" message={errors.mode} />
-        </SectionCard>
-
-        {/* Tailor Experience */}
-        <SectionCard icon={Paperclip} title="Tailor Experience">
-          <p className="mb-5 text-secondary">
-            Upload your resume or job description to generate highly specific questions
-            based on your profile.
-          </p>
-
-          <div>
-            <FieldLabel htmlFor="resumeId">
-              Saved Resume
-            </FieldLabel>
-
-            <div className="relative">
-              <select
-                id="resumeId"
-                value={selectedResumeId}
-                onChange={(e) =>
-                  setSelectedResumeId(e.target.value)
-                }
-                disabled={resumesLoading}
-                className={cn(
-                  fieldBase,
-                  fieldBorder(false),
-                  "appearance-none pr-10"
-                )}
-              >
-                <option value="">
-                  {resumesLoading
-                    ? "Loading resumes..."
-                    : "No resume selected"}
-                </option>
-
-                {resumes.map((resume) => (
-                  <option
-                    key={resume.id}
-                    value={resume.id}
+            <div
+              role="radiogroup"
+              aria-label="Practice goal"
+              className="mt-4 grid grid-cols-2 gap-6"
+            >
+              {(
+                [
+                  {
+                    value: "general",
+                    title: "General Practice",
+                    body: "Practice freely without attaching this session to a real interview.",
+                    cta: "Start from scratch",
+                  },
+                  {
+                    value: "specific",
+                    title: "Prepare for a Specific Interview",
+                    body: "Use a scheduled calendar interview to prefill context and track progress.",
+                    cta: "Choose interview",
+                  },
+                ] as const
+              ).map((g) => {
+                const selected = goal === g.value;
+                return (
+                  <button
+                    key={g.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setGoal(g.value)}
+                    className={cn(
+                      "rounded-xl border p-5 text-left transition-colors",
+                      selected
+                        ? "border-cta bg-info-bg"
+                        : "border-line bg-card hover:border-line-strong",
+                    )}
                   >
-                    {resume.fileName}
-                  </option>
-                ))}
-              </select>
-
-              <ChevronDown
-                className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-tertiary"
-                aria-hidden
-              />
+                    <p className="text-sm font-semibold text-primary">
+                      {g.title}
+                    </p>
+                    <p className="mt-2 text-xs text-secondary">{g.body}</p>
+                    <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-link">
+                      {g.cta}
+                      {g.value === "specific" && (
+                        <ArrowRight className="h-3 w-3" />
+                      )}
+                    </p>
+                  </button>
+                );
+              })}
             </div>
+            <FieldError id="goal-error" message={errors.goal} />
+          </section>
 
-            {!resumesLoading && resumes.length === 0 && (
-              <p className="mt-2 text-sm text-secondary">
-                No saved resumes yet. Upload one from your resume page first.
-              </p>
-            )}
+          {/* Interview Details */}
+          <SectionCard icon={FileText} title="Interview Details">
+            <div className="space-y-5">
+              <div>
+                <FieldLabel htmlFor="title">Interview Name*</FieldLabel>
+                <input
+                  id="title"
+                  name="title"
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g., Senior Frontend Engineer - TechCorp"
+                  aria-invalid={errors.title ? true : undefined}
+                  aria-describedby={errors.title ? "title-error" : undefined}
+                  className={cn(
+                    fieldBase,
+                    fieldBorder(!!errors.title),
+                    "placeholder:text-placeholder",
+                  )}
+                />
+                <FieldError id="title-error" message={errors.title} />
+              </div>
 
-            {!resumesLoading && resumes.length > 0 && (
-              <p className="mt-2 text-sm text-secondary">
-                Selecting a saved resume lets the interviewer generate questions grounded in your experience.
-              </p>
-            )}
+              <div className="grid grid-cols-2 gap-6">
+                <SelectField
+                  name="industry"
+                  label="Industry"
+                  value={industry}
+                  onChange={setIndustry}
+                  placeholder="Select Industry"
+                  options={INDUSTRIES}
+                  error={errors.industry}
+                />
+                <SelectField
+                  name="roleLevel"
+                  label="Role Level"
+                  value={roleLevel}
+                  onChange={setRoleLevel}
+                  placeholder="Select Level"
+                  options={ROLE_LEVELS}
+                  error={errors.roleLevel}
+                />
+                <SelectField
+                  name="experienceLevel"
+                  label="Experience Level"
+                  value={experience}
+                  onChange={setExperience}
+                  placeholder="Select Experience"
+                  options={EXPERIENCE_LEVELS}
+                  error={errors.experienceLevel}
+                />
+                <SelectField
+                  name="focusArea"
+                  label="Focus Areas*"
+                  value={focus}
+                  onChange={setFocus}
+                  placeholder="Select Focus"
+                  options={FOCUS_AREAS}
+                  error={errors.focusArea}
+                />
+              </div>
+            </div>
+          </SectionCard>
+
+          {/* Simulation Mode */}
+          <SectionCard icon={SlidersHorizontal} title="Simulation Mode">
+            <p className="mb-5 text-sm text-secondary">
+              Choose how you want to interact with the AI interviewer.
+            </p>
+            <div
+              role="radiogroup"
+              aria-label="Simulation mode"
+              className="grid grid-cols-3 gap-4"
+            >
+              {MODES.map((m) => {
+                const selected = mode === m.value;
+                return (
+                  <button
+                    key={m.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setMode(m.value)}
+                    className={cn(
+                      "rounded-lg border-2 p-4 text-left transition-colors",
+                      selected
+                        ? "border-cta bg-tinted"
+                        : "border-line bg-card hover:border-line-strong",
+                    )}
+                  >
+                    <div className="flex items-start justify-between">
+                      <m.icon
+                        className={cn(
+                          "h-6 w-6",
+                          selected ? "text-cta" : "text-secondary",
+                        )}
+                        aria-hidden
+                      />
+                      <RadioDot selected={selected} />
+                    </div>
+                    <p className="mt-3 text-base font-medium text-primary">
+                      {m.label}
+                    </p>
+                    <p className="mt-1 text-sm text-secondary">
+                      {m.description}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+            <FieldError id="mode-error" message={errors.mode} />
+          </SectionCard>
+        </form>
+
+        {/* Tailor Experience: outside the setup form, because ResumeUpload and
+            TargetJobForm manage their own submissions (nested forms are invalid HTML). */}
+        <SectionCard icon={Paperclip} title="Tailor Experience">
+          <p className="mb-6 text-secondary">
+            Add a resume and the job you&apos;re targeting to generate highly
+            specific questions based on your profile.
+          </p>
+
+          <div className="space-y-8">
+            <ResumeUpload
+              initialResumes={initialResumes}
+              loadError={resumeLoadError}
+              selectedId={selectedResumeId}
+              onSelect={setSelectedResumeId}
+            />
+            <TargetJobForm
+              saveAction={saveTargetJobAction}
+              removeAction={removeTargetJobAction}
+              initialTargetJob={initialTargetJob}
+              loadError={targetJobLoadError}
+            />
           </div>
-
-          <div className="my-6 flex items-center gap-4">
-            <span className="h-px flex-1 bg-line-subtle" />
-            <span className="font-mono text-xs uppercase tracking-widest text-secondary">
-              Or paste job description
-            </span>
-            <span className="h-px flex-1 bg-line-subtle" />
-          </div>
-
-          <textarea
-            name="jobDescription"
-            value={jobDescription}
-            onChange={(e) => setJobDescription(e.target.value)}
-            placeholder="Paste the job description here..."
-            rows={4}
-            aria-label="Job description"
-            aria-invalid={errors.jobDescription ? true : undefined}
-            aria-describedby={errors.jobDescription ? "jobDescription-error" : undefined}
-            className={cn(
-              fieldBase,
-              fieldBorder(!!errors.jobDescription),
-              "resize-none placeholder:text-placeholder"
-            )}
-          />
-          <FieldError id="jobDescription-error" message={errors.jobDescription} />
         </SectionCard>
       </main>
-    </form>
+    </div>
   );
 }

@@ -4,12 +4,7 @@
 // Users may save multiple PDF/DOCX resumes for different interview targets.
 // Browser validation happens before the request; the API/backend validates again.
 
-import {
-  useRef,
-  useState,
-  type DragEvent,
-  type ReactNode,
-} from "react";
+import { useRef, useState, type DragEvent, type ReactNode } from "react";
 
 import Link from "next/link";
 
@@ -44,6 +39,10 @@ import {
 interface ResumeUploadProps {
   initialResumes: Resume[];
   loadError?: string;
+  // Which saved resume the interview will use ("" = none). Optional so the
+  // component still works on its own.
+  selectedId?: string;
+  onSelect?: (id: string) => void;
 }
 
 type Status = "idle" | "uploading" | "removing";
@@ -67,19 +66,21 @@ const softButton =
 export function ResumeUpload({
   initialResumes,
   loadError,
+  selectedId,
+  onSelect,
 }: ResumeUploadProps) {
   const [resumes, setResumes] = useState<Resume[]>(initialResumes);
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [removingId, setRemovingId] = useState<string | null>(null);
-  const [confirmingRemoveId, setConfirmingRemoveId] =
-    useState<string | null>(null);
+  const [confirmingRemoveId, setConfirmingRemoveId] = useState<string | null>(
+    null,
+  );
 
   const [problem, setProblem] = useState<Problem | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [showLoadError, setShowLoadError] =
-    useState(Boolean(loadError));
+  const [showLoadError, setShowLoadError] = useState(Boolean(loadError));
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -150,20 +151,14 @@ export function ResumeUpload({
 
     if (result && "resume" in result) {
       // New resumes appear first.
-      setResumes((current) => [
-        result.resume,
-        ...current,
-      ]);
+      setResumes((current) => [result.resume, ...current]);
 
       setFile(null);
       setNotice(RESUME_NOTICES.uploaded);
       return;
     }
 
-    const code =
-      result && "code" in result
-        ? result.code
-        : "unavailable";
+    const code = result && "code" in result ? result.code : "unavailable";
 
     if (code === "unauthenticated") {
       setProblem({
@@ -173,11 +168,7 @@ export function ResumeUpload({
       return;
     }
 
-    if (
-      code === "unavailable" ||
-      !result ||
-      !("error" in result)
-    ) {
+    if (code === "unavailable" || !result || !("error" in result)) {
       // Keep the selected file so the user can retry.
       setProblem({
         message: RESUME_ERROR_MESSAGES.uploadUnavailable,
@@ -209,7 +200,7 @@ export function ResumeUpload({
         `${RESUME_API_URL}?id=${encodeURIComponent(resumeId)}`,
         {
           method: "DELETE",
-        }
+        },
       );
 
       result = (await response.json()) as ResumeApiResponse;
@@ -222,18 +213,17 @@ export function ResumeUpload({
     setConfirmingRemoveId(null);
 
     if (result && "success" in result && result.success) {
+      if (selectedId === resumeId) onSelect?.("");
+
       setResumes((current) =>
-        current.filter((resume) => resume.id !== resumeId)
+        current.filter((resume) => resume.id !== resumeId),
       );
 
       setNotice(RESUME_NOTICES.removed);
       return;
     }
 
-    const code =
-      result && "code" in result
-        ? result.code
-        : "unavailable";
+    const code = result && "code" in result ? result.code : "unavailable";
 
     setProblem(
       code === "unauthenticated"
@@ -243,7 +233,7 @@ export function ResumeUpload({
           }
         : {
             message: RESUME_ERROR_MESSAGES.removeUnavailable,
-          }
+          },
     );
   }
 
@@ -288,13 +278,11 @@ export function ResumeUpload({
 
       <section className="flex flex-col gap-4 rounded-2xl border border-line-subtle bg-card p-6 shadow-sm">
         <div>
-          <h2 className="text-lg font-medium text-primary">
-            Upload a resume
-          </h2>
+          <h2 className="text-lg font-medium text-primary">Upload a resume</h2>
 
           <p className="mt-1 text-sm text-tertiary">
-            You can save multiple resumes and choose the appropriate
-            one when creating an interview.
+            You can save multiple resumes and choose the appropriate one when
+            creating an interview.
           </p>
         </div>
 
@@ -310,24 +298,19 @@ export function ResumeUpload({
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
           className={cn(
-            "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors",
+            "relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors",
             "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-focus-ring",
             dragging
               ? "border-cta bg-tinted"
               : "border-input-default hover:bg-hover/40",
-            busy && "cursor-not-allowed opacity-60"
+            busy && "cursor-not-allowed opacity-60",
           )}
         >
-          <Upload
-            className="h-8 w-8 text-cta"
-            aria-hidden="true"
-          />
+          <Upload className="h-8 w-8 text-cta" aria-hidden="true" />
 
           <span className="text-base font-semibold text-primary">
             Drag and drop your resume here, or{" "}
-            <span className="text-link underline">
-              choose a file
-            </span>
+            <span className="text-link underline">choose a file</span>
           </span>
 
           <span className="text-sm text-tertiary">
@@ -341,9 +324,7 @@ export function ResumeUpload({
             type="file"
             accept={RESUME_ACCEPT}
             disabled={busy}
-            onChange={(event) =>
-              chooseFile(event.target.files?.[0])
-            }
+            onChange={(event) => chooseFile(event.target.files?.[0])}
             className="sr-only"
           />
         </label>
@@ -386,22 +367,14 @@ export function ResumeUpload({
           >
             <Upload className="h-4 w-4" aria-hidden="true" />
 
-            {status === "uploading"
-              ? "Uploading…"
-              : "Upload Resume"}
+            {status === "uploading" ? "Uploading…" : "Upload Resume"}
           </button>
         </div>
       </section>
 
-      <section
-        aria-labelledby="saved-resumes"
-        className="flex flex-col gap-4"
-      >
+      <section aria-labelledby="saved-resumes" className="flex flex-col gap-4">
         <div>
-          <h2
-            id="saved-resumes"
-            className="text-xl font-semibold text-primary"
-          >
+          <h2 id="saved-resumes" className="text-xl font-semibold text-primary">
             Saved Resumes
           </h2>
 
@@ -415,19 +388,17 @@ export function ResumeUpload({
         </div>
 
         {resumes.map((resume) => {
-          const viewUrl =
-            `${RESUME_FILE_URL}?id=${encodeURIComponent(
-              resume.id
-            )}`;
+          const viewUrl = `${RESUME_FILE_URL}?id=${encodeURIComponent(
+            resume.id,
+          )}`;
 
-          const downloadUrl =
-            `${viewUrl}&download=1`;
+          const downloadUrl = `${viewUrl}&download=1`;
 
-          const confirming =
-            confirmingRemoveId === resume.id;
+          const confirming = confirmingRemoveId === resume.id;
 
-          const removing =
-            removingId === resume.id;
+          const removing = removingId === resume.id;
+
+          const selected = selectedId === resume.id;
 
           return (
             <article
@@ -436,10 +407,7 @@ export function ResumeUpload({
             >
               <div className="flex flex-wrap items-center gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-tinted">
-                  <FileText
-                    className="h-6 w-6 text-cta"
-                    aria-hidden="true"
-                  />
+                  <FileText className="h-6 w-6 text-cta" aria-hidden="true" />
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -453,10 +421,7 @@ export function ResumeUpload({
                     {formatFileSize(resume.sizeBytes)}
                     {" · Uploaded "}
 
-                    <time
-                      dateTime={resume.uploadedAt}
-                      suppressHydrationWarning
-                    >
+                    <time dateTime={resume.uploadedAt} suppressHydrationWarning>
                       {formatDate(resume.uploadedAt)}
                     </time>
                   </p>
@@ -464,27 +429,32 @@ export function ResumeUpload({
               </div>
 
               <div className="mt-5 flex flex-wrap gap-2 border-t border-line-subtle pt-4">
+                {onSelect && (
+                  <button
+                    type="button"
+                    onClick={() => onSelect(selected ? "" : resume.id)}
+                    aria-pressed={selected}
+                    disabled={busy}
+                    className={selected ? primaryButton : softButton}
+                  >
+                    {selected
+                      ? "Using for this interview"
+                      : "Use for this interview"}
+                  </button>
+                )}
+
                 <a
                   href={viewUrl}
                   target="_blank"
                   rel="noopener"
                   className={softButton}
                 >
-                  <ExternalLink
-                    className="h-4 w-4"
-                    aria-hidden="true"
-                  />
+                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
                   View
                 </a>
 
-                <a
-                  href={downloadUrl}
-                  className={softButton}
-                >
-                  <Download
-                    className="h-4 w-4"
-                    aria-hidden="true"
-                  />
+                <a href={downloadUrl} className={softButton}>
+                  <Download className="h-4 w-4" aria-hidden="true" />
                   Download
                 </a>
 
@@ -498,10 +468,7 @@ export function ResumeUpload({
                     disabled={busy}
                     className={softButton}
                   >
-                    <Trash2
-                      className="h-4 w-4"
-                      aria-hidden="true"
-                    />
+                    <Trash2 className="h-4 w-4" aria-hidden="true" />
                     Remove
                   </button>
                 )}
@@ -509,9 +476,7 @@ export function ResumeUpload({
 
               {confirming && (
                 <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg bg-error-bg px-4 py-3 text-sm text-error-text">
-                  <span>
-                    Remove this resume?
-                  </span>
+                  <span>Remove this resume?</span>
 
                   <button
                     type="button"
@@ -519,16 +484,12 @@ export function ResumeUpload({
                     disabled={busy}
                     className="font-semibold underline disabled:opacity-50"
                   >
-                    {removing
-                      ? "Removing…"
-                      : "Yes, remove it"}
+                    {removing ? "Removing…" : "Yes, remove it"}
                   </button>
 
                   <button
                     type="button"
-                    onClick={() =>
-                      setConfirmingRemoveId(null)
-                    }
+                    onClick={() => setConfirmingRemoveId(null)}
                     disabled={busy}
                     className="font-semibold disabled:opacity-50"
                   >
@@ -568,33 +529,21 @@ function Banner({
   children: ReactNode;
 }) {
   const styles = {
-    success:
-      "border-success-border bg-success-bg text-success-text",
-    warning:
-      "border-warning-border bg-warning-bg text-warning-text",
-    error:
-      "border-error-border bg-error-bg text-error-text",
+    success: "border-success-border bg-success-bg text-success-text",
+    warning: "border-warning-border bg-warning-bg text-warning-text",
+    error: "border-error-border bg-error-bg text-error-text",
   }[tone];
 
-  const Icon =
-    tone === "error" || tone === "warning"
-      ? TriangleAlert
-      : null;
+  const Icon = tone === "error" || tone === "warning" ? TriangleAlert : null;
 
   return (
     <div
       role={role}
-      className={cn(
-        "rounded-xl border px-4 py-3 text-sm",
-        styles
-      )}
+      className={cn("rounded-xl border px-4 py-3 text-sm", styles)}
     >
       <div className="flex gap-2">
         {Icon && (
-          <Icon
-            className="mt-0.5 h-4 w-4 shrink-0"
-            aria-hidden="true"
-          />
+          <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
         )}
 
         <div>{children}</div>

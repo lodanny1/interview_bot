@@ -114,6 +114,7 @@ async function generateResumePersonalizedQuestion({
   } = await getResumeContext({
     userId,
     resumeId,
+    extractIfNeeded: true,
   });
 
   const resumeContext = JSON.stringify(

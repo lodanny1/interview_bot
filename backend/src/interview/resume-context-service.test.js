@@ -1,9 +1,13 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const resumeRepository = require("../resumes/resume-repository");
+const resumeReviewRepository = require("../resumes/resume-review-repository");
+const resumeExtractionService = require("../resumes/resume-extraction-service");
 
-const originalGetResume = resumeRepository.getResume;
+const originalGetResumeReview =
+  resumeReviewRepository.getResumeReview;
+const originalExtractAndParseResume =
+  resumeExtractionService.extractAndParseResume;
 
 function reloadService() {
   delete require.cache[
@@ -14,7 +18,10 @@ function reloadService() {
 }
 
 test.afterEach(() => {
-  resumeRepository.getResume = originalGetResume;
+  resumeReviewRepository.getResumeReview =
+    originalGetResumeReview;
+  resumeExtractionService.extractAndParseResume =
+    originalExtractAndParseResume;
 
   delete require.cache[
     require.resolve("./resume-context-service")
@@ -119,7 +126,7 @@ test("buildInterviewResumeContext returns null for missing parsed JSON", () => {
 });
 
 test("getResumeContext returns parsed interview context", async () => {
-  resumeRepository.getResume = async (
+  resumeReviewRepository.getResumeReview = async (
     userId,
     resumeId
   ) => ({
@@ -168,7 +175,7 @@ test("getResumeContext returns parsed interview context", async () => {
 });
 
 test("getResumeContext rejects a missing resume", async () => {
-  resumeRepository.getResume = async () => null;
+  resumeReviewRepository.getResumeReview = async () => null;
 
   const {
     getResumeContext,
@@ -192,11 +199,18 @@ test("getResumeContext rejects a missing resume", async () => {
 });
 
 test("getResumeContext rejects an unparsed resume", async () => {
-  resumeRepository.getResume = async () => ({
+  let extractCalls = 0;
+
+  resumeReviewRepository.getResumeReview = async () => ({
     id: "resume-123",
     parse_status: "PENDING",
     parsed_json: null,
   });
+
+  resumeExtractionService.extractAndParseResume =
+    async () => {
+      extractCalls += 1;
+    };
 
   const {
     getResumeContext,
@@ -212,6 +226,166 @@ test("getResumeContext rejects an unparsed resume", async () => {
       assert.equal(
         error.code,
         "RESUME_NOT_PARSED"
+      );
+
+      return true;
+    }
+  );
+
+  assert.equal(extractCalls, 0);
+});
+
+test("getResumeContext prefers the reviewed information over the extraction", async () => {
+  resumeReviewRepository.getResumeReview = async () => ({
+    id: "resume-123",
+    parse_status: "COMPLETED",
+    parsed_json: {
+      summary: "Extracted summary",
+      skills: ["Pyhton"],
+    },
+    reviewed_json: {
+      name: "Jordan Lee",
+      summary: "Reviewed summary",
+      skills: ["Python", "AWS"],
+      education: [],
+      experience: [],
+      projects: [],
+      certifications: [],
+    },
+  });
+
+  const {
+    getResumeContext,
+  } = reloadService();
+
+  const result = await getResumeContext({
+    userId: "user-123",
+    resumeId: "resume-123",
+  });
+
+  assert.equal(
+    result.context.summary,
+    "Reviewed summary"
+  );
+
+  assert.deepEqual(
+    result.context.skills,
+    ["Python", "AWS"]
+  );
+
+  assert.equal("name" in result.context, false);
+});
+
+test("getResumeContext extracts an unparsed resume first when extractIfNeeded is set", async () => {
+  const extractInputs = [];
+  let parsed = false;
+
+  resumeReviewRepository.getResumeReview = async () =>
+    parsed
+      ? {
+          id: "resume-123",
+          parse_status: "COMPLETED",
+          parsed_json: {
+            summary: "Cloud engineer",
+            skills: ["AWS"],
+          },
+          reviewed_json: null,
+        }
+      : {
+          id: "resume-123",
+          parse_status: "PENDING",
+          parsed_json: null,
+          reviewed_json: null,
+        };
+
+  resumeExtractionService.extractAndParseResume =
+    async (input) => {
+      extractInputs.push(input);
+      parsed = true;
+    };
+
+  const {
+    getResumeContext,
+  } = reloadService();
+
+  const result = await getResumeContext({
+    userId: "user-123",
+    resumeId: "resume-123",
+    extractIfNeeded: true,
+  });
+
+  assert.deepEqual(extractInputs, [
+    {
+      userId: "user-123",
+      resumeId: "resume-123",
+    },
+  ]);
+
+  assert.deepEqual(result.context.skills, ["AWS"]);
+});
+
+test("getResumeContext does not extract a resume that is already parsed", async () => {
+  let extractCalls = 0;
+
+  resumeReviewRepository.getResumeReview = async () => ({
+    id: "resume-123",
+    parse_status: "COMPLETED",
+    parsed_json: {
+      summary: "Cloud engineer",
+    },
+    reviewed_json: null,
+  });
+
+  resumeExtractionService.extractAndParseResume =
+    async () => {
+      extractCalls += 1;
+    };
+
+  const {
+    getResumeContext,
+  } = reloadService();
+
+  await getResumeContext({
+    userId: "user-123",
+    resumeId: "resume-123",
+    extractIfNeeded: true,
+  });
+
+  assert.equal(extractCalls, 0);
+});
+
+test("getResumeContext propagates extraction errors", async () => {
+  resumeReviewRepository.getResumeReview = async () => ({
+    id: "resume-123",
+    parse_status: "FAILED",
+    parsed_json: null,
+    reviewed_json: null,
+  });
+
+  resumeExtractionService.extractAndParseResume =
+    async () => {
+      const error = new Error(
+        "No usable resume information was found."
+      );
+      error.code = "UNUSABLE_RESUME_DATA";
+      throw error;
+    };
+
+  const {
+    getResumeContext,
+  } = reloadService();
+
+  await assert.rejects(
+    () =>
+      getResumeContext({
+        userId: "user-123",
+        resumeId: "resume-123",
+        extractIfNeeded: true,
+      }),
+    (error) => {
+      assert.equal(
+        error.code,
+        "UNUSABLE_RESUME_DATA"
       );
 
       return true;

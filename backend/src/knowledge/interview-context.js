@@ -2,12 +2,10 @@
 // and the saved target job into the knowledge retrieval for one interview.
 // No database or auth calls: the caller passes in what it already loaded.
 //
-// Usage from a future POST /interviews route:
-//   const targetJob = await getTargetJob(user.id); // row or null
+// Used by interview/interview-knowledge.js, which POST /interviews calls
+// through prepareInterviewKnowledge, and by the insights route:
 //   const { input, knowledge } = buildInterviewContext({ setup: body, targetJob });
 //   // prompt: input.jobTitle, input.company, knowledge.context, knowledge.coverage
-//   // persist: input, knowledge.version, knowledge.retrieverVersion,
-//   //          knowledge.sections, knowledge.sources (or knowledge.context)
 const {
   DEFAULT_FOCUS_AREA,
   FOCUS_AREAS,

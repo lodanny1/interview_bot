@@ -203,6 +203,8 @@ async function generateResumePersonalizedQuestion({
   role,
   company,
   interviewType,
+  knowledgeContext,
+  knowledgeCoverage,
 }) {
   if (!userId) {
     throw new Error("userId is required");
@@ -230,6 +232,8 @@ async function generateResumePersonalizedQuestion({
     company,
     interviewType,
     resumeContext,
+    knowledgeContext,
+    knowledgeCoverage,
   });
 
   const response = await converse({

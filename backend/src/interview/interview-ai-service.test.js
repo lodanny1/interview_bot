@@ -528,3 +528,36 @@ test("both question generators send the knowledge to the AI service", async () =
   assert.match(prompts[0], /two behavioral interviews/);
   assert.match(prompts[0], SUPPORTED_ONLY);
 });
+
+test("the resume-personalized opening question sends the knowledge with the resume", async () => {
+  let prompt;
+
+  resumeContextService.getResumeContext = async () => ({
+    resumeId: "resume-123",
+    context: { summary: "Built internal APIs", skills: ["Node.js"] },
+  });
+
+  aiService.converse = async (input) => {
+    prompt = input.systemPrompt;
+    return { text: "Question", stopReason: "end_turn", usage: null };
+  };
+
+  delete require.cache[require.resolve("./interview-ai-service")];
+
+  const { generateResumePersonalizedQuestion } = require("./interview-ai-service");
+
+  await generateResumePersonalizedQuestion({
+    userId: "user-123",
+    resumeId: "resume-123",
+    role: "Software Engineer",
+    company: "Acme",
+    interviewType: "behavioral",
+    knowledgeContext: COMPANY_KNOWLEDGE,
+    knowledgeCoverage: coverageFor("matched"),
+  });
+
+  assert.match(prompt, /Built internal APIs/);
+  assert.match(prompt, /two behavioral interviews/);
+  assert.match(prompt, SUPPORTED_ONLY);
+  assert.ok(prompt.endsWith(`<interview_knowledge>\n${COMPANY_KNOWLEDGE}\n</interview_knowledge>`));
+});

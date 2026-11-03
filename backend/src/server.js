@@ -32,6 +32,7 @@ const { createInterviewRouter } = require("./interview/interview-routes");
 const interviewRepository = require("./interview/interview-repository");
 const interviewAiService = require("./interview/interview-ai-service");
 const interviewResumeContextService = require("./interview/resume-context-service");
+const interviewKnowledge = require("./interview/interview-knowledge");
 
 const app = express();
 app.disable("x-powered-by");
@@ -348,6 +349,9 @@ app.use(
     repository: interviewRepository,
     aiService: interviewAiService,
     resumeContextService: interviewResumeContextService,
+    // Role & Company Knowledge Retrieval (Issue #16).
+    getTargetJob,
+    knowledgeService: interviewKnowledge,
   })
 );
 

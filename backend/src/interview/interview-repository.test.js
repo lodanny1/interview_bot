@@ -93,6 +93,8 @@ test("createInterviewSession inserts a session", async () => {
       "entry",
       "junior",
       "Example description",
+      null,
+      null,
     ]
   );
 

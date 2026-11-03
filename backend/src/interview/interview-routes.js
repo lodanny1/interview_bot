@@ -5,6 +5,8 @@ function createInterviewRouter({
   repository,
   aiService,
   resumeContextService = null,
+  getTargetJob = null,
+  knowledgeService = null,
   logger = console,
 }) {
   const router = express.Router();
@@ -126,6 +128,83 @@ function createInterviewRouter({
     };
   }
 
+  // The prompt inputs used before Issue #16: the role level as the role and
+  // no company.
+  function basicPromptInput({ roleLevel, focusArea }) {
+    return {
+      role: roleLevel,
+      company: null,
+      interviewType: focusArea,
+    };
+  }
+
+  // Role & Company Knowledge Retrieval (Issue #16). With knowledgeService,
+  // the interview uses the saved target job's title and company plus the
+  // matching interview notes. The result is stored on the session so every
+  // later question uses the same notes. Returns null without knowledgeService.
+  async function prepareKnowledge(userId, setup) {
+    if (!knowledgeService) {
+      return null;
+    }
+
+    // "general" practice ignores the target job, so it isn't loaded.
+    const targetJob =
+      setup.goal === "specific" && getTargetJob
+        ? await getTargetJob(userId)
+        : null;
+
+    const prepared =
+      knowledgeService.prepareInterviewKnowledge({
+        setup,
+        targetJob,
+      });
+
+    return {
+      promptInput: {
+        ...prepared.promptInput,
+        // Without a job title, keep the role level as before.
+        role:
+          prepared.promptInput.role ||
+          setup.roleLevel,
+      },
+      knowledgeSummary:
+        knowledgeService.knowledgeSummary(
+          prepared.knowledge
+        ),
+    };
+  }
+
+  // The prompt input stored when the session started, or the basic one for
+  // sessions started before prompt_input existed.
+  function promptInputFor(session) {
+    if (
+      session.prompt_input &&
+      typeof session.prompt_input === "object"
+    ) {
+      return session.prompt_input;
+    }
+
+    return basicPromptInput({
+      roleLevel: session.role_level,
+      focusArea: session.focus_area,
+    });
+  }
+
+  // A closing needs no notes, only the same role, company and type.
+  function closingInputFor(session) {
+    const {
+      role,
+      company,
+      interviewType,
+    } = promptInputFor(session);
+
+    return {
+      role,
+      company,
+      interviewType,
+    };
+  }
+
   router.get("/interviews", async (req, res) => {
     const auth = await requireActiveUser(req);
 
@@ -194,10 +273,24 @@ function createInterviewRouter({
     let session;
 
     try {
+      const knowledge = await prepareKnowledge(
+        auth.user.id,
+        validation.data
+      );
+
+      const promptInput = knowledge
+        ? knowledge.promptInput
+        : basicPromptInput(validation.data);
+
       session =
         await repository.createInterviewSession({
           userId: auth.user.id,
           ...validation.data,
+          ...(knowledge && {
+            promptInput: knowledge.promptInput,
+            knowledgeSummary:
+              knowledge.knowledgeSummary,
+          }),
         });
 
       const aiResponse =
@@ -205,16 +298,10 @@ function createInterviewRouter({
           ? await aiService.generateResumePersonalizedQuestion({
               userId: auth.user.id,
               resumeId: validation.data.resumeId,
-              role: validation.data.roleLevel,
-              company: null,
-              interviewType:
-                validation.data.focusArea,
+              ...promptInput,
             })
           : await aiService.generateOpeningQuestion({
-              role: validation.data.roleLevel,
-              company: null,
-              interviewType:
-                validation.data.focusArea,
+              ...promptInput,
               resumeContext: null,
             });
 
@@ -320,10 +407,7 @@ function createInterviewRouter({
         if (timeState?.expired) {
           const closingResponse =
             await aiService.generateClosingStatement({
-              role: session.role_level,
-              company: null,
-              interviewType:
-                session.focus_area,
+              ...closingInputFor(session),
               conversation,
             });
 
@@ -375,10 +459,7 @@ function createInterviewRouter({
 
         const aiResponse =
           await aiService.generateFollowUpQuestion({
-            role: session.role_level,
-            company: null,
-            interviewType:
-              session.focus_area,
+            ...promptInputFor(session),
             resumeContext,
             conversation,
           });
@@ -475,10 +556,7 @@ function createInterviewRouter({
           if (conversation.length > 0) {
             const closingResponse =
               await aiService.generateClosingStatement({
-                role: session.role_level,
-                company: null,
-                interviewType:
-                  session.focus_area,
+                ...closingInputFor(session),
                 conversation,
               });
 

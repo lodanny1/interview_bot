@@ -4,8 +4,8 @@ This module covers retrieval of curated role, company, industry and interview-st
 
 **Status:**
 
-- **Ready:** retrieval, prompt integration, interview insights (API and UI), and tests.
-- **Blocked:** live interview integration. No `POST /interviews` route exists yet (see [Interview route integration](#interview-route-integration)).
+- **Ready:** retrieval, prompt integration, live interview integration (see [Interview route integration](#interview-route-integration)), interview insights (API and UI), and tests.
+- **Not checked yet:** question quality with a live model. All tests use a stubbed AI service.
 
 | File | What it does |
 |---|---|
@@ -19,6 +19,8 @@ This module covers retrieval of curated role, company, industry and interview-st
 | `fixtures/retrieval-cases.json` | 46 relevance cases, run by `retrieval-cases.test.js` and the report |
 | `../interview/interview-ai-service.js` | Prompt: optional `knowledgeContext` and `knowledgeCoverage` |
 | `../interview/interview-knowledge.js` | Setup and target job → retrieval → question generators |
+| `../interview/interview-routes.js` | The interview routes: build the knowledge at start, store it on the session, reuse it on later turns |
+| `../../sql/007_add_interview_knowledge.sql` | `interview_sessions.prompt_input` and `knowledge_summary` |
 | `../../scripts/knowledge-report.js` | Relevance report (`npm run knowledge:report`) |
 | `../../scripts/capture-insights-fixture.js` | Regenerates the frontend's copy of real insights responses |
 
@@ -192,31 +194,24 @@ Without either input, the prompt is byte-for-byte the previous one. With them:
 
 ## Interview route integration
 
-**Status: implementation ready; live interview integration blocked.** No backend `/interviews` route exists on `main` or on any teammate branch as of 2026-11-01. The frontend (#14, #17) already posts the setup to a guessed `POST /interviews`.
+The interview routes in `../interview/interview-routes.js` use the knowledge. `server.js` passes `getTargetJob` and `knowledgeService` (`interview-knowledge.js`) to `createInterviewRouter`; without them, the routes behave as before.
 
-When the session-start route is built (#14 owner, with #18 follow-ups and #20 persistence), it should do this:
+**Start (`POST /interviews`)**
+1. For a "specific" goal, load the saved target job; "general" practice doesn't load it.
+2. `prepareInterviewKnowledge({ setup, targetJob })` turns the validated setup and the job into `promptInput` (role, company, interview type, `knowledgeContext`, `knowledgeCoverage`). Without a job title, the role falls back to the setup's role level, as before.
+3. The session stores `promptInput` in `prompt_input`, and `knowledgeSummary(...)` (ids, versions and statuses only) in `knowledge_summary`.
+4. The opening question gets `promptInput`. That's `generateOpeningQuestion`, or `generateResumePersonalizedQuestion` when a resume is selected.
 
-```js
-const { generateOpeningQuestionWithKnowledge, generateFollowUpQuestionWithKnowledge } =
-  require("./interview/interview-knowledge");
+**Later turns (`POST /interviews/:id/messages`, `POST /interviews/:id/complete`)**
+- Follow-up questions reuse the stored `prompt_input`, so every question in a session uses the same notes, even if the target job or the knowledge base changes mid-session. The target job isn't loaded again.
+- Closings (time limit or user-ended) use the stored role, company and interview type, without the notes.
+- Sessions started before migration 007 have no `prompt_input`. They keep the old inputs: the role level as the role, and no company.
 
-// Start: setup = validated POST /interviews body; user from requireActiveUser.
-const targetJob = await getTargetJob(user.id);          // a DB failure here is the route's 5xx
-const opening = await generateOpeningQuestionWithKnowledge({ setup, targetJob, resumeContext });
-// opening.text            -> first question
-// opening.promptInput     -> store with the session (plain JSON, includes the context text)
-// opening.knowledge       -> ids, versions and statuses only, safe to log or store
-// opening.input.notes     -> e.g. "target_job_missing" to show the user
-
-// Each later turn:
-const next = await generateFollowUpQuestionWithKnowledge({
-  promptInput: session.promptInput, resumeContext, conversation,
-});
-```
-
+**Failures**
 - Retrieval never throws, so a knowledge problem never blocks an interview.
-- `converse` failures still reject, and the route should turn them into a recoverable error.
-- The opening and follow-ups have only been checked with a stubbed AI service, not a live model.
+- A database error while loading the target job fails the start like any other database error (500).
+- `converse` failures still reject, as before.
+- The questions have only been checked with a stubbed AI service, not a live model.
 
 ## Interview insights
 
@@ -239,7 +234,7 @@ Responses are `private, no-store`. The panel under the target job form:
 
 **Return visits.** Insights are recomputed from the saved job and the deployed knowledge base on every request. A returning user sees the same insights until they edit the job or new content is deployed; then the insights change. No snapshot is stored, and none is needed for the panel.
 
-**Interview sessions.** A session should store `promptInput` (or at least `knowledgeContext`) if follow-ups must reuse the opening's notes. `version` plus section ids name what was used but cannot rebuild old text after a deploy.
+**Interview sessions.** Unlike the panel, a session stores a snapshot: `prompt_input` holds the full `knowledgeContext`, so follow-ups reuse the opening's notes. `knowledge_summary` (version plus section ids) names what was used, but on its own it can't rebuild old text after a deploy.
 
 ## Determinism and versioning
 

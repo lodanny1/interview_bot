@@ -1,19 +1,13 @@
 // Role & Company Knowledge Retrieval (Issue #16). Connects knowledge retrieval
 // to the interview question generators.
 //
-// There is no interview route yet. The route that starts a session should:
-//   const targetJob = await getTargetJob(user.id);          // row or null
-//   const opening = await generateOpeningQuestionWithKnowledge({
-//     setup: validatedStartBody, targetJob, resumeContext,
-//   });
-//   // store opening.promptInput with the session (and opening.knowledge for
-//   // auditing), then for each later turn:
-//   await generateFollowUpQuestionWithKnowledge({
-//     promptInput: storedPromptInput, resumeContext, conversation,
-//   });
-// Reusing the stored promptInput keeps follow-up questions on the same notes
-// as the opening question even if the target job or the knowledge base
-// changes mid-session.
+// interview-routes.js uses prepareInterviewKnowledge and knowledgeSummary:
+// POST /interviews builds promptInput from the setup and the saved target job,
+// stores it on the session (interview_sessions.prompt_input), and passes it to
+// the opening question; later turns reuse the stored promptInput. That keeps
+// follow-up questions on the same notes as the opening question even if the
+// target job or the knowledge base changes mid-session.
+// The generate*WithKnowledge helpers do the same for callers without a route.
 const { buildInterviewContext } = require("../knowledge/interview-context");
 const interviewAiService = require("./interview-ai-service");
 

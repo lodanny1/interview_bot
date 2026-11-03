@@ -34,12 +34,23 @@ function firstQuestion(focusArea: string): InterviewMessage {
 }
 
 export function createMockSession(input: StartInterviewInput): ActiveInterviewSession {
+  const now = new Date();
+  const endsAt = new Date(
+    now.getTime() + 30 * 60 * 1000
+  );
+
   const session: ActiveInterviewSession = {
     id: `mock-${Date.now().toString(36)}`,
     title: input.title,
     mode: input.mode,
+    status: "ACTIVE",
+    startedAt: now.toISOString(),
+    endsAt: endsAt.toISOString(),
+    durationMinutes: 30,
+    completionReason: null,
     messages: [firstQuestion(input.focusArea)],
   };
+
   store().set(session.id, session);
   return session;
 }
@@ -48,7 +59,21 @@ export function getMockSession(id: string): ActiveInterviewSession | null {
   const saved = store().get(id);
   if (saved) return saved;
   if (id.startsWith("mock-")) {
-    return { id, title: "Interview", mode: "text", messages: [firstQuestion("mixed")] };
+    const now = new Date();
+
+    return {
+      id,
+      title: "Interview",
+      mode: "text",
+      status: "ACTIVE",
+      startedAt: now.toISOString(),
+      endsAt: new Date(
+        now.getTime() + 30 * 60 * 1000
+      ).toISOString(),
+      durationMinutes: 30,
+      completionReason: null,
+      messages: [firstQuestion("mixed")],
+    };
   }
   return null;
 }

@@ -42,8 +42,20 @@ export function isMockMode(): boolean {
   return process.env.USE_MOCK_DATA === "true";
 }
 
-// Mock mode only: survives between requests while the dev server runs.
-let mockTargetJob: TargetJob | null = null;
+// Mock mode only: survives between requests while the dev server runs. Kept on
+// globalThis because Next bundles pages, server actions and route handlers
+// separately; a module-level variable would give each its own copy, and the
+// interview insights route wouldn't see a job saved from the page.
+const MOCK_TARGET_JOB = Symbol.for("interview-bot.mock-target-job");
+const mockStore = globalThis as unknown as Record<symbol, TargetJob | null | undefined>;
+
+function getMockStoreJob(): TargetJob | null {
+  return mockStore[MOCK_TARGET_JOB] ?? null;
+}
+
+function setMockStoreJob(targetJob: TargetJob | null): void {
+  mockStore[MOCK_TARGET_JOB] = targetJob;
+}
 
 async function request(
   method: "GET" | "PUT" | "DELETE",
@@ -79,7 +91,7 @@ function isAuthFailure(response: Response): boolean {
 
 export async function loadTargetJob(idToken: string): Promise<LoadTargetJobResult> {
   if (isMockMode()) {
-    return { ok: true, targetJob: mockTargetJob };
+    return { ok: true, targetJob: getMockStoreJob() };
   }
 
   const response = await request("GET", idToken);
@@ -103,13 +115,14 @@ export async function saveTargetJob(
   input: TargetJobInput
 ): Promise<SaveTargetJobResult> {
   if (isMockMode()) {
-    mockTargetJob = {
+    const targetJob: TargetJob = {
       jobTitle: input.jobTitle,
       company: input.company || null,
       description: input.description,
       updatedAt: new Date().toISOString(),
     };
-    return { ok: true, targetJob: mockTargetJob };
+    setMockStoreJob(targetJob);
+    return { ok: true, targetJob };
   }
 
   const response = await request("PUT", idToken, input);
@@ -139,7 +152,7 @@ export async function saveTargetJob(
 
 export async function removeTargetJob(idToken: string): Promise<RemoveTargetJobResult> {
   if (isMockMode()) {
-    mockTargetJob = null;
+    setMockStoreJob(null);
     return { ok: true };
   }
 
@@ -153,7 +166,12 @@ export async function removeTargetJob(idToken: string): Promise<RemoveTargetJobR
   return { ok: true };
 }
 
+// Mock mode only: lets the interview insights mock follow the saved job.
+export function getMockTargetJob(): TargetJob | null {
+  return getMockStoreJob();
+}
+
 // Tests only.
 export function resetMockTargetJob(): void {
-  mockTargetJob = null;
+  setMockStoreJob(null);
 }

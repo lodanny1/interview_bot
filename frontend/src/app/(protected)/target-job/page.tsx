@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/session-cookie-name";
-import { TargetJobForm } from "@/components/target-job/TargetJobForm";
+import { TargetJobWorkspace } from "@/components/target-job/TargetJobWorkspace";
 import { isMockMode, loadTargetJob } from "@/lib/target-job/target-job-api";
 import { TARGET_JOB_ERROR_MESSAGES } from "@/lib/target-job/target-job-form-state";
 import { removeTargetJobAction, saveTargetJobAction } from "./actions";
@@ -36,7 +36,7 @@ export default async function TargetJobPage() {
         </p>
       </header>
 
-      <TargetJobForm
+      <TargetJobWorkspace
         saveAction={saveTargetJobAction}
         removeAction={removeTargetJobAction}
         initialTargetJob={loaded.ok ? loaded.targetJob : null}

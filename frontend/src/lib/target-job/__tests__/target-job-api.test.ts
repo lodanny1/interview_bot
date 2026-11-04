@@ -127,4 +127,19 @@ describe("target job API", () => {
     await expect(loadTargetJob("t")).resolves.toEqual({ ok: true, targetJob: null });
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("shares the mock store between separate copies of the module", async () => {
+    // Next bundles pages and route handlers separately, so each gets its own
+    // copy of this module; the mock job must still be the same.
+    vi.stubEnv("USE_MOCK_DATA", "true");
+    resetMockTargetJob();
+    await saveTargetJob("t", INPUT);
+
+    vi.resetModules();
+    const otherCopy = await import("@/lib/target-job/target-job-api");
+
+    expect(otherCopy.getMockTargetJob()).toMatchObject({ jobTitle: INPUT.jobTitle, company: "Acme" });
+    otherCopy.resetMockTargetJob();
+    await expect(loadTargetJob("t")).resolves.toEqual({ ok: true, targetJob: null });
+  });
 });

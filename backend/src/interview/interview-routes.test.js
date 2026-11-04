@@ -1079,3 +1079,273 @@ test("POST /interviews/:id/messages ends interview naturally when time limit is 
     server.close();
   }
 });
+
+/* ------------- Role & Company Knowledge Retrieval (Issue #16) ------------- */
+
+const interviewKnowledge = require("./interview-knowledge");
+
+const AMAZON_INTERN_JOB = {
+  job_title: "Software Development Engineer Intern",
+  company: "Amazon",
+  description: "Build and test services as part of a software development team.",
+};
+
+const STORED_PROMPT_INPUT = {
+  role: "Software Development Engineer Intern",
+  company: "Amazon",
+  interviewType: "behavioral",
+  knowledgeContext: [
+    '<knowledge_base version="kb-test">',
+    '<document id="company.amazon" kind="company" title="Amazon" reviewed="2026-11-01">',
+    "</document>",
+    "</knowledge_base>",
+  ].join("\n"),
+  knowledgeCoverage: { company: { status: "matched" } },
+};
+
+async function postJson(baseUrl, path, body) {
+  const response = await fetch(`${baseUrl}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  return { status: response.status, body: await response.json() };
+}
+
+// Starts a router with the real knowledge module and records what reaches
+// the repository and the AI service.
+async function startKnowledgeServer({ targetJob = AMAZON_INTERN_JOB, session = null } = {}) {
+  const calls = { targetJobUsers: [], created: null, ai: {} };
+
+  const repository = {
+    createInterviewSession: async (input) => {
+      calls.created = input;
+      return { id: "session-kb", title: input.title, mode: input.mode, status: "ACTIVE" };
+    },
+    getInterviewSession: async () => session,
+    addInterviewMessage: async (input) => ({
+      id: `message-${input.role}`,
+      role: input.role,
+      content: input.content,
+      created_at: "2026-11-02T08:00:00.000Z",
+    }),
+    getInterviewMessages: async () => [
+      { id: "m1", role: "interviewer", content: "Tell me about a project.", created_at: "2026-11-02T08:00:00.000Z" },
+      { id: "m2", role: "candidate", content: "I built an API.", created_at: "2026-11-02T08:01:00.000Z" },
+    ],
+    getInterviewTimeState: async () => ({ expired: Boolean(session && session.expired) }),
+    completeInterviewSession: async () => ({ ...session, status: "COMPLETED" }),
+  };
+
+  const record = (name) => async (input) => {
+    calls.ai[name] = input;
+    return { text: `${name} text` };
+  };
+
+  const aiService = {
+    generateOpeningQuestion: record("opening"),
+    generateResumePersonalizedQuestion: record("resumeOpening"),
+    generateFollowUpQuestion: record("followUp"),
+    generateClosingStatement: record("closing"),
+  };
+
+  const router = createInterviewRouter({
+    requireActiveUser: activeAuth(),
+    repository,
+    aiService,
+    getTargetJob: async (userId) => {
+      calls.targetJobUsers.push(userId);
+      return targetJob;
+    },
+    knowledgeService: interviewKnowledge,
+    logger: { error: () => {} },
+  });
+
+  const { server, baseUrl } = await startTestServer(router);
+
+  return { server, baseUrl, calls };
+}
+
+test("POST /interviews uses the saved target job and its interview notes, and stores them on the session", async () => {
+  const { server, baseUrl, calls } = await startKnowledgeServer();
+
+  try {
+    const { status } = await postJson(baseUrl, "/interviews", {
+      goal: "specific",
+      title: "Amazon practice",
+      focusArea: "behavioral",
+      mode: "text",
+      roleLevel: "intern",
+    });
+
+    assert.equal(status, 201);
+    assert.deepEqual(calls.targetJobUsers, ["user-123"]);
+
+    const { promptInput, knowledgeSummary } = calls.created;
+
+    assert.equal(promptInput.role, "Software Development Engineer Intern");
+    assert.equal(promptInput.company, "Amazon");
+    assert.equal(promptInput.interviewType, "behavioral");
+    assert.match(promptInput.knowledgeContext, /^<knowledge_base version="/);
+    assert.equal(promptInput.knowledgeCoverage.company.status, "matched");
+    assert.equal(knowledgeSummary.coverage.company.status, "matched");
+    assert.ok(knowledgeSummary.sectionIds.length > 0);
+
+    // The opening question gets exactly what was stored.
+    assert.deepEqual(calls.ai.opening, { ...promptInput, resumeContext: null });
+  } finally {
+    server.close();
+  }
+});
+
+test("POST /interviews does not load the target job for general practice", async () => {
+  const { server, baseUrl, calls } = await startKnowledgeServer();
+
+  try {
+    const { status } = await postJson(baseUrl, "/interviews", {
+      goal: "general",
+      title: "General practice",
+      focusArea: "behavioral",
+      mode: "text",
+      roleLevel: "entry",
+    });
+
+    assert.equal(status, 201);
+    assert.deepEqual(calls.targetJobUsers, []);
+
+    const { promptInput } = calls.created;
+
+    // No job title, so the role level is used as before; no company.
+    assert.equal(promptInput.role, "entry");
+    assert.equal(promptInput.company, null);
+    assert.equal(promptInput.knowledgeCoverage.company.status, "not_given");
+    assert.equal(calls.ai.opening.knowledgeCoverage.company.status, "not_given");
+  } finally {
+    server.close();
+  }
+});
+
+test("POST /interviews passes the interview notes to the resume-personalized opening question", async () => {
+  const { server, baseUrl, calls } = await startKnowledgeServer();
+
+  try {
+    const { status } = await postJson(baseUrl, "/interviews", {
+      goal: "specific",
+      title: "Amazon practice with resume",
+      focusArea: "technical",
+      mode: "text",
+      roleLevel: "intern",
+      resumeId: "resume-123",
+    });
+
+    assert.equal(status, 201);
+    assert.equal(calls.ai.opening, undefined);
+    assert.deepEqual(calls.ai.resumeOpening, {
+      userId: "user-123",
+      resumeId: "resume-123",
+      ...calls.created.promptInput,
+    });
+    assert.equal(calls.ai.resumeOpening.company, "Amazon");
+  } finally {
+    server.close();
+  }
+});
+
+test("follow-up questions reuse the prompt input stored with the session", async () => {
+  const session = {
+    id: "session-kb",
+    status: "ACTIVE",
+    role_level: "intern",
+    focus_area: "behavioral",
+    prompt_input: STORED_PROMPT_INPUT,
+  };
+  const { server, baseUrl, calls } = await startKnowledgeServer({ session });
+
+  try {
+    const { status } = await postJson(baseUrl, "/interviews/session-kb/messages", {
+      content: "I built an API.",
+    });
+
+    assert.equal(status, 201);
+    // Later turns never reload the target job.
+    assert.deepEqual(calls.targetJobUsers, []);
+
+    const { conversation, resumeContext, ...input } = calls.ai.followUp;
+
+    assert.deepEqual(input, STORED_PROMPT_INPUT);
+    assert.equal(resumeContext, null);
+    assert.equal(conversation.length, 2);
+  } finally {
+    server.close();
+  }
+});
+
+test("closings use the stored role, company and type without the notes", async () => {
+  const expected = {
+    role: "Software Development Engineer Intern",
+    company: "Amazon",
+    interviewType: "behavioral",
+  };
+
+  // The time limit is reached while answering.
+  const expired = await startKnowledgeServer({
+    session: { id: "session-kb", status: "ACTIVE", prompt_input: STORED_PROMPT_INPUT, expired: true },
+  });
+
+  try {
+    const { status, body } = await postJson(expired.baseUrl, "/interviews/session-kb/messages", {
+      content: "One more thing.",
+    });
+
+    assert.equal(status, 201);
+    assert.equal(body.completionReason, "TIME_LIMIT");
+
+    const { conversation, ...input } = expired.calls.ai.closing;
+    assert.deepEqual(input, expected);
+  } finally {
+    expired.server.close();
+  }
+
+  // The candidate ends the interview.
+  const ended = await startKnowledgeServer({
+    session: { id: "session-kb", status: "ACTIVE", prompt_input: STORED_PROMPT_INPUT },
+  });
+
+  try {
+    const { status } = await postJson(ended.baseUrl, "/interviews/session-kb/complete", {
+      reason: "USER_ENDED",
+    });
+
+    assert.equal(status, 200);
+
+    const { conversation, ...input } = ended.calls.ai.closing;
+    assert.deepEqual(input, expected);
+  } finally {
+    ended.server.close();
+  }
+});
+
+test("sessions started before prompt_input existed keep the basic prompt input", async () => {
+  const session = {
+    id: "session-old",
+    status: "ACTIVE",
+    role_level: "entry",
+    focus_area: "technical",
+    prompt_input: null,
+  };
+  const { server, baseUrl, calls } = await startKnowledgeServer({ session });
+
+  try {
+    const { status } = await postJson(baseUrl, "/interviews/session-old/messages", {
+      content: "I worked with AWS.",
+    });
+
+    assert.equal(status, 201);
+
+    const { conversation, resumeContext, ...input } = calls.ai.followUp;
+    assert.deepEqual(input, { role: "entry", company: null, interviewType: "technical" });
+  } finally {
+    server.close();
+  }
+});

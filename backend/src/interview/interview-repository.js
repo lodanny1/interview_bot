@@ -15,9 +15,12 @@ const SESSION_COLUMNS = `
   status,
   created_at,
   updated_at,
-  completed_at
+  completed_at,
+  prompt_input
 `;
 
+// promptInput and knowledgeSummary come from interview-knowledge.js (Issue
+// #16); the columns are added by backend/sql/007_add_interview_knowledge.sql.
 async function createInterviewSession({
   userId,
   resumeId = null,
@@ -29,6 +32,8 @@ async function createInterviewSession({
   roleLevel = null,
   experienceLevel = null,
   jobDescription = null,
+  promptInput = null,
+  knowledgeSummary = null,
 }) {
   if (!userId) {
     throw new Error("userId is required");
@@ -65,11 +70,14 @@ async function createInterviewSession({
           industry,
           role_level,
           experience_level,
-          job_description
+          job_description,
+          prompt_input,
+          knowledge_summary
         )
         VALUES (
           $1, $2, $3, $4, $5,
-          $6, $7, $8, $9, $10
+          $6, $7, $8, $9, $10,
+          $11, $12
         )
         RETURNING ${SESSION_COLUMNS}
       `,
@@ -84,6 +92,8 @@ async function createInterviewSession({
         roleLevel,
         experienceLevel,
         jobDescription,
+        promptInput,
+        knowledgeSummary,
       ]
     );
 

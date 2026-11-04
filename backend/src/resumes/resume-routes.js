@@ -172,8 +172,25 @@ function createResumeRouter({
         });
       }
 
+      let processedResume = saved;
+
+      try {
+        const result = await extractionService.extractAndParseResume({
+          userId: user.id,
+          resumeId: saved.id,
+        });
+
+        processedResume = result.resume;
+      } catch (error) {
+        logger.error("Automatic resume extraction failed:", error);
+      }
+
       return res.status(201).json({
-        resume: toResponse(saved),
+        resume: {
+          ...toResponse(processedResume),
+          parseStatus: processedResume.parse_status,
+          parsedAt: processedResume.parsed_at,
+        },
       });
     }
   );

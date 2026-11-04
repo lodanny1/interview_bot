@@ -17,6 +17,11 @@ const {
   parseResume,
 } = require("./resume-parser");
 
+const {
+  hasResumeContent,
+  normalizeResumeData,
+} = require("./resume-review-validation");
+
 async function extractAndParseResume({
   userId,
   resumeId,
@@ -69,6 +74,22 @@ async function extractAndParseResume({
     } = await parseResume(
       parsedText
     );
+
+    // Issue #08: output with no usable resume content (e.g. {} or the
+    // prompt's all-null example) is recorded as FAILED, not COMPLETED.
+    if (
+      !hasResumeContent(
+        normalizeResumeData(parsedJson)
+      )
+    ) {
+      const error = new Error(
+        "No usable resume information was found."
+      );
+
+      error.code = "UNUSABLE_RESUME_DATA";
+
+      throw error;
+    }
 
     const updatedResume =
       await saveResumeExtraction({

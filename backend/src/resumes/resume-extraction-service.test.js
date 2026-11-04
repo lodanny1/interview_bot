@@ -258,6 +258,90 @@ test("extractAndParseResume marks resume failed when extraction fails", async ()
   });
 });
 
+// Issue #08: AI output with no usable resume content must not be COMPLETED.
+for (const [label, parsedJson] of [
+  ["an empty object", {}],
+  ["an array", [{ skills: ["AWS"] }]],
+  [
+    "the prompt's all-null example",
+    {
+      name: null,
+      skills: [],
+      education: [{ institution: null, degree: null }],
+      experience: [{ company: null, role: null, description: [] }],
+      projects: [{ name: null, description: [], technologies: [] }],
+      certifications: [],
+    },
+  ],
+]) {
+  test(`extractAndParseResume marks resume failed when AI returns ${label}`, async () => {
+    let failureRecord = null;
+    let saved = false;
+
+    repository.getResume = async () => ({
+      id: "resume-123",
+      user_id: "user-123",
+      s3_key: "resumes/user/resume.pdf",
+      content_type: "application/pdf",
+    });
+
+    repository.markResumeProcessing =
+      async () => {};
+
+    storage.getResumeObject = async () => ({
+      body: {},
+      contentType: "application/pdf",
+    });
+
+    extractor.extractResumeText =
+      async () => "Some resume text";
+
+    parser.parseResume = async () => ({
+      parsedJson,
+      usage: null,
+    });
+
+    repository.saveResumeExtraction =
+      async () => {
+        saved = true;
+      };
+
+    repository.markResumeExtractionFailed =
+      async (input) => {
+        failureRecord = input;
+      };
+
+    const {
+      extractAndParseResume,
+    } = reloadService();
+
+    await assert.rejects(
+      () =>
+        extractAndParseResume({
+          userId: "user-123",
+          resumeId: "resume-123",
+        }),
+      (error) => {
+        assert.equal(
+          error.code,
+          "UNUSABLE_RESUME_DATA"
+        );
+
+        return true;
+      }
+    );
+
+    assert.equal(saved, false);
+
+    assert.deepEqual(failureRecord, {
+      userId: "user-123",
+      resumeId: "resume-123",
+      errorMessage:
+        "No usable resume information was found.",
+    });
+  });
+}
+
 test("extractAndParseResume validates required IDs", async () => {
   const {
     extractAndParseResume,

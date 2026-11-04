@@ -492,4 +492,22 @@ describe("ResumeUpload", () => {
       )
     ).toBeTruthy();
   });
+
+  // Issue #08: each saved resume links to its review page.
+  it("links each saved resume to its review page", () => {
+    setup({
+      initialResumes: [RESUME, SECOND_RESUME],
+    });
+
+    const links = screen.getAllByRole("link", {
+      name: "Review information",
+    });
+
+    expect(
+      links.map((link) => link.getAttribute("href"))
+    ).toEqual([
+      `/resume/${RESUME.id}/review`,
+      `/resume/${SECOND_RESUME.id}/review`,
+    ]);
+  });
 });

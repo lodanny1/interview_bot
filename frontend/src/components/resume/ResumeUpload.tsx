@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 
 import {
+  ClipboardCheck,
   Download,
   ExternalLink,
   FileText,
@@ -40,6 +41,8 @@ import {
   type Resume,
   type ResumeApiResponse,
 } from "@/lib/resume/resume-state";
+
+import { resumeReviewPath } from "@/lib/resume/resume-review-state";
 
 interface ResumeUploadProps {
   initialResumes: Resume[];
@@ -464,6 +467,17 @@ export function ResumeUpload({
               </div>
 
               <div className="mt-5 flex flex-wrap gap-2 border-t border-line-subtle pt-4">
+                <Link
+                  href={resumeReviewPath(resume.id)}
+                  className={softButton}
+                >
+                  <ClipboardCheck
+                    className="h-4 w-4"
+                    aria-hidden="true"
+                  />
+                  Review information
+                </Link>
+
                 <a
                   href={viewUrl}
                   target="_blank"

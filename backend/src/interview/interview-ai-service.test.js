@@ -231,6 +231,7 @@ test("generateResumePersonalizedQuestion uses the selected resume context", asyn
     {
       userId: "user-123",
       resumeId: "resume-123",
+      extractIfNeeded: true,
     }
   );
 

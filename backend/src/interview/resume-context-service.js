@@ -1,5 +1,8 @@
-const resumeRepository = require("../resumes/resume-repository");
+const resumeReviewRepository = require("../resumes/resume-review-repository");
+const resumeExtractionService = require("../resumes/resume-extraction-service");
 
+// Takes the parser's output structure. A reviewed copy (Issue #08) has the
+// same structure, so either can be passed in.
 function buildInterviewResumeContext(parsedJson) {
   if (!parsedJson || typeof parsedJson !== "object") {
     return null;
@@ -35,9 +38,14 @@ function buildInterviewResumeContext(parsedJson) {
   return context;
 }
 
+// Uses the information the user confirmed on the review page (reviewed_json)
+// when there is one, otherwise the AI extraction (parsed_json).
+// With extractIfNeeded, a resume that isn't extracted yet is extracted first
+// (one AI call), so starting an interview doesn't depend on the review page.
 async function getResumeContext({
   userId,
   resumeId,
+  extractIfNeeded = false,
 }) {
   if (!userId) {
     throw new Error("userId is required");
@@ -47,10 +55,11 @@ async function getResumeContext({
     throw new Error("resumeId is required");
   }
 
-  const resume = await resumeRepository.getResume(
-    userId,
-    resumeId
-  );
+  let resume =
+    await resumeReviewRepository.getResumeReview(
+      userId,
+      resumeId
+    );
 
   if (!resume) {
     const error = new Error("Resume not found.");
@@ -58,7 +67,23 @@ async function getResumeContext({
     throw error;
   }
 
-  if (resume.parse_status !== "COMPLETED") {
+  if (
+    resume.parse_status !== "COMPLETED" &&
+    extractIfNeeded
+  ) {
+    await resumeExtractionService.extractAndParseResume({
+      userId,
+      resumeId,
+    });
+
+    resume =
+      await resumeReviewRepository.getResumeReview(
+        userId,
+        resumeId
+      );
+  }
+
+  if (!resume || resume.parse_status !== "COMPLETED") {
     const error = new Error(
       "Resume has not been successfully parsed."
     );
@@ -67,7 +92,7 @@ async function getResumeContext({
   }
 
   const context = buildInterviewResumeContext(
-    resume.parsed_json
+    resume.reviewed_json || resume.parsed_json
   );
 
   if (!context) {

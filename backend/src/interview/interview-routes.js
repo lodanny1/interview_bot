@@ -6,6 +6,7 @@ function createInterviewRouter({
   aiService,
   resumeContextService = null,
   getTargetJob = null,
+  getTargetJobById = null,
   knowledgeService = null,
   logger = console,
 }) {
@@ -125,6 +126,11 @@ function createInterviewRouter({
           body.resumeId.trim()
             ? body.resumeId.trim()
             : null,
+        targetJobId:
+          typeof body?.targetJobId === "string" &&
+          body.targetJobId.trim()
+            ? body.targetJobId.trim()
+            : null,
       },
     };
   }
@@ -149,14 +155,30 @@ function createInterviewRouter({
     }
 
     // "general" practice ignores the target job, so it isn't loaded.
-    const targetJob =
-      setup.goal === "specific" && getTargetJob
-        ? await getTargetJob(userId)
-        : null;
+    let targetJob = null;
+
+    if (setup.goal === "specific") {
+      if (setup.targetJobId && getTargetJobById) {
+        targetJob = await getTargetJobById(
+          userId,
+          setup.targetJobId
+        );
+
+        if (!targetJob) {
+          const error = new Error("Target job not found");
+          error.code = "TARGET_JOB_NOT_FOUND";
+          throw error;
+        }
+      } else if (getTargetJob) {
+        targetJob = await getTargetJob(userId);
+      }
+    }
 
     const prepared =
       knowledgeService.prepareInterviewKnowledge({
-        setup,
+        // A saved target job is authoritative; don't let stale form text
+        // override its latest description during interview creation.
+        setup: setup.targetJobId ? { ...setup, jobDescription: null } : setup,
         targetJob,
       });
 

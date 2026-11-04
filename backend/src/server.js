@@ -19,6 +19,11 @@ const {
 } = require("./target-jobs/target-job-validation");
 const {
   getTargetJob,
+  getTargetJobById,
+  listTargetJobs,
+  createTargetJob,
+  updateTargetJobById,
+  deleteTargetJobById,
   upsertTargetJob,
   deleteTargetJob,
 } = require("./target-jobs/target-job-repository");
@@ -258,6 +263,107 @@ app.put("/me/setup", async (req, res) => {
   }
 });
 
+// Multiple Target Jobs
+app.get("/me/target-jobs", async (req, res) => {
+  const auth = await requireActiveUser(req);
+
+  if (!auth.ok) {
+    return res.status(auth.status).json({ error: auth.error });
+  }
+
+  try {
+    const targetJobs = await listTargetJobs(auth.user.id);
+    return res.status(200).json({ targetJobs });
+  } catch (error) {
+    console.error("GET /me/target-jobs failed:", error);
+    return res.status(500).json({
+      error: "Unable to load target jobs",
+    });
+  }
+});
+
+app.post("/me/target-jobs", async (req, res) => {
+  const auth = await requireActiveUser(req);
+
+  if (!auth.ok) {
+    return res.status(auth.status).json({ error: auth.error });
+  }
+
+  const validation = validateTargetJob(req.body);
+
+  if (!validation.ok) {
+    return res.status(400).json({
+      error: "Some target job information is missing or invalid",
+      fieldErrors: validation.fieldErrors,
+    });
+  }
+
+  try {
+    const targetJob = await createTargetJob({
+      userId: auth.user.id,
+      ...validation.data,
+    });
+
+    return res.status(201).json({ targetJob });
+  } catch (error) {
+    console.error("POST /me/target-jobs failed:", error);
+    return res.status(500).json({
+      error: "Unable to save target job",
+    });
+  }
+});
+
+app.put("/me/target-jobs/:targetJobId", async (req, res) => {
+  const auth = await requireActiveUser(req);
+  if (!auth.ok) return res.status(auth.status).json({ error: auth.error });
+  const validation = validateTargetJob(req.body);
+  if (!validation.ok) return res.status(400).json({
+    error: "Some target job information is missing or invalid",
+    fieldErrors: validation.fieldErrors,
+  });
+  try {
+    const targetJob = await updateTargetJobById({
+      userId: auth.user.id,
+      targetJobId: req.params.targetJobId,
+      ...validation.data,
+    });
+    if (!targetJob) return res.status(404).json({ error: "Target job not found" });
+    return res.status(200).json({ targetJob });
+  } catch (error) {
+    if (error.code === "22P02") return res.status(400).json({ error: "Invalid target job id" });
+    console.error("PUT /me/target-jobs/:targetJobId failed:", error);
+    return res.status(500).json({ error: "Unable to update target job" });
+  }
+});
+
+app.delete("/me/target-jobs/:targetJobId", async (req, res) => {
+  const auth = await requireActiveUser(req);
+
+  if (!auth.ok) {
+    return res.status(auth.status).json({ error: auth.error });
+  }
+
+  try {
+    const deleted = await deleteTargetJobById(
+      auth.user.id,
+      req.params.targetJobId
+    );
+
+    if (!deleted) {
+      return res.status(404).json({
+        error: "Target job not found",
+      });
+    }
+
+    return res.status(204).end();
+  } catch (error) {
+    console.error("DELETE /me/target-jobs/:targetJobId failed:", error);
+    return res.status(500).json({
+      error: "Unable to remove target job",
+    });
+  }
+});
+
 // Add Target Job Description (Issue #09). One target job per user.
 app.get("/me/target-job", async (req, res) => {
   const auth = await requireActiveUser(req);
@@ -355,6 +461,7 @@ app.use(
   createKnowledgeRouter({
     requireActiveUser,
     getTargetJob,
+    getTargetJobById,
   })
 );
 
@@ -366,6 +473,7 @@ app.use(
     resumeContextService: interviewResumeContextService,
     // Role & Company Knowledge Retrieval (Issue #16).
     getTargetJob,
+    getTargetJobById,
     knowledgeService: interviewKnowledge,
   })
 );

@@ -71,12 +71,13 @@ function toInsights(knowledgeBase, knowledge, targetJob) {
 function createKnowledgeRouter({
   requireActiveUser,
   getTargetJob,
+  getTargetJobById = null,
   getKnowledgeBase = defaultGetKnowledgeBase,
   logger = console,
 }) {
   const router = express.Router();
 
-  router.get("/me/interview-insights", async (req, res) => {
+  async function serveInsights(req, res) {
     // Per-user data: never cached by browsers or proxies.
     res.set("Cache-Control", "private, no-store");
 
@@ -86,10 +87,16 @@ function createKnowledgeRouter({
       return res.status(auth.status).json({ error: auth.error });
     }
 
+    if (req.params.targetJobId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.params.targetJobId)) {
+      return res.status(400).json({ error: "Invalid target job id" });
+    }
+
     let targetJob;
 
     try {
-      targetJob = await getTargetJob(auth.user.id);
+      targetJob = req.params.targetJobId
+        ? (getTargetJobById ? await getTargetJobById(auth.user.id, req.params.targetJobId) : null)
+        : await getTargetJob(auth.user.id);
     } catch (error) {
       logger.error("GET /me/interview-insights could not load the target job:", error.message);
 
@@ -101,7 +108,9 @@ function createKnowledgeRouter({
     }
 
     if (!targetJob) {
-      return res.status(200).json({ status: "no_target_job" });
+      return req.params.targetJobId
+        ? res.status(404).json({ error: "Target job not found" })
+        : res.status(200).json({ status: "no_target_job" });
     }
 
     const summary = { jobTitle: targetJob.job_title, company: targetJob.company || null };
@@ -131,7 +140,10 @@ function createKnowledgeRouter({
 
       return res.status(200).json({ status: "unavailable", targetJob: summary });
     }
-  });
+  }
+
+  router.get("/me/interview-insights", serveInsights); // Legacy compatibility
+  router.get("/me/target-jobs/:targetJobId/insights", serveInsights);
 
   return router;
 }

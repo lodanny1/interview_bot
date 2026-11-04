@@ -28,6 +28,7 @@ export interface RawStartInterview {
   mode: unknown;
   jobDescription: unknown;
   resumeId: unknown;
+  targetJobId: unknown;
 }
 
 export type StartInterviewValidation =
@@ -80,6 +81,7 @@ export function validateStartInterview(raw: RawStartInterview): StartInterviewVa
   }
 
   const resumeId = text(raw.resumeId);
+  const targetJobId = text(raw.targetJobId);
 
   const jobDescription = text(raw.jobDescription);
   if (jobDescription.length > JOB_DESCRIPTION_MAX_LENGTH) {
@@ -101,6 +103,7 @@ export function validateStartInterview(raw: RawStartInterview): StartInterviewVa
   if (experienceLevel) data.experienceLevel = experienceLevel;
   if (jobDescription) data.jobDescription = jobDescription;
   if (resumeId) data.resumeId = resumeId;
+  if (targetJobId) data.targetJobId = targetJobId;
 
   return { ok: true, data };
 }

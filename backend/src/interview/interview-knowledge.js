@@ -31,6 +31,7 @@ function prepareInterviewKnowledge({ setup, targetJob } = {}, options = {}) {
     promptInput: {
       role: input.jobTitle,
       company: input.company,
+      jobDescription: input.jobDescription,
       interviewType: INTERVIEW_TYPES[input.focusArea],
       knowledgeContext: knowledge.context,
       knowledgeCoverage: knowledge.coverage,

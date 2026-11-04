@@ -127,6 +127,7 @@ test("POST /interviews creates a session and opening question", async () => {
         jobDescription:
           "Example job description",
         resumeId: null,
+        targetJobId: null,
       }
     );
 

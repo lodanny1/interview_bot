@@ -65,6 +65,7 @@ test("prepareInterviewKnowledge turns setup and the saved job into generator inp
   assert.deepEqual(Object.keys(promptInput).sort(), [
     "company",
     "interviewType",
+    "jobDescription",
     "knowledgeContext",
     "knowledgeCoverage",
     "role",

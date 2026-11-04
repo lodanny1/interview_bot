@@ -70,6 +70,7 @@ export interface StartInterviewInput {
   experienceLevel?: string;
   jobDescription?: string;
   resumeId?: string;
+  targetJobId?: string;
 }
 
 // An in-progress session. Different from InterviewSession above, which is a

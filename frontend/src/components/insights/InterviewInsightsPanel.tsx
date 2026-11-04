@@ -21,6 +21,7 @@ import {
 interface InterviewInsightsPanelProps {
   // Change it to reload, e.g. after the target job is saved or removed.
   refreshKey?: number;
+  targetJobId?: string;
 }
 
 type Result =
@@ -45,11 +46,11 @@ export const INSIGHTS_COPY = {
   sources: "Sources",
 } as const;
 
-export function InterviewInsightsPanel({ refreshKey = 0 }: InterviewInsightsPanelProps) {
+export function InterviewInsightsPanel({ refreshKey = 0, targetJobId }: InterviewInsightsPanelProps) {
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<LoadState>(null);
   const latestRequest = useRef(0);
-  const requestKey = `${refreshKey}:${attempt}`;
+  const requestKey = `${targetJobId ?? "legacy"}:${refreshKey}:${attempt}`;
 
   useEffect(() => {
     const requestId = ++latestRequest.current;
@@ -57,7 +58,7 @@ export function InterviewInsightsPanel({ refreshKey = 0 }: InterviewInsightsPane
 
     async function load(): Promise<Result | null> {
       try {
-        const response = await fetch(INSIGHTS_API_URL, { cache: "no-store", signal: controller.signal });
+        const response = await fetch(targetJobId ? `/api/target-jobs/${encodeURIComponent(targetJobId)}/insights` : INSIGHTS_API_URL, { cache: "no-store", signal: controller.signal });
         const body: unknown = await response.json().catch(() => null);
 
         if (response.status === 401) return { phase: "error", code: "unauthenticated" };

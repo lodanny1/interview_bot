@@ -199,6 +199,17 @@ export default function InterviewSetupForm() {
 
   const [selectedResumeId, setSelectedResumeId] = useState("");
   const [resumesLoading, setResumesLoading] = useState(true);
+
+  const [targetJobs, setTargetJobs] = useState<
+    {
+      id: string;
+      jobTitle: string;
+      company: string | null;
+      description: string;
+    }[]
+  >([]);
+  const [selectedTargetJobId, setSelectedTargetJobId] = useState("");
+  const [targetJobsLoading, setTargetJobsLoading] = useState(true);
   const [state, formAction, isPending] = useActionState(
     startInterviewAction,
     INITIAL_INTERVIEW_SETUP_STATE
@@ -271,6 +282,50 @@ export default function InterviewSetupForm() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTargetJobs() {
+      try {
+        const response = await fetch("/api/target-jobs", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) return;
+
+        const body = await response.json();
+
+        if (!cancelled && Array.isArray(body?.targetJobs)) {
+          setTargetJobs(
+            body.targetJobs.map(
+              (job: {
+                id: string;
+                job_title: string;
+                company: string | null;
+                description: string;
+              }) => ({
+                id: job.id,
+                jobTitle: job.job_title,
+                company: job.company,
+                description: job.description,
+              })
+            )
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setTargetJobsLoading(false);
+        }
+      }
+    }
+
+    loadTargetJobs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
 
   return (
     <form action={formAction} noValidate className="w-full text-primary">
@@ -281,6 +336,16 @@ export default function InterviewSetupForm() {
         type="hidden"
         name="resumeId"
         value={selectedResumeId}
+      />
+      <input
+        type="hidden"
+        name="targetJobId"
+        value={selectedTargetJobId}
+      />
+      <input
+        type="hidden"
+        name="jobDescription"
+        value={jobDescription}
       />
 
       {/* Top bar */}
@@ -521,27 +586,77 @@ export default function InterviewSetupForm() {
           <div className="my-6 flex items-center gap-4">
             <span className="h-px flex-1 bg-line-subtle" />
             <span className="font-mono text-xs uppercase tracking-widest text-secondary">
-              Or paste job description
+              Target job
             </span>
             <span className="h-px flex-1 bg-line-subtle" />
           </div>
 
-          <textarea
-            name="jobDescription"
-            value={jobDescription}
-            onChange={(e) => setJobDescription(e.target.value)}
-            placeholder="Paste the job description here..."
-            rows={4}
-            aria-label="Job description"
-            aria-invalid={errors.jobDescription ? true : undefined}
-            aria-describedby={errors.jobDescription ? "jobDescription-error" : undefined}
-            className={cn(
-              fieldBase,
-              fieldBorder(!!errors.jobDescription),
-              "resize-none placeholder:text-placeholder"
+          <div>
+            <FieldLabel htmlFor="targetJobId">
+              Saved Target Job
+            </FieldLabel>
+
+            <div className="relative">
+              <select
+                id="targetJobId"
+                value={selectedTargetJobId}
+                disabled={targetJobsLoading}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  setSelectedTargetJobId(id);
+
+                  // The backend loads the current description by targetJobId.
+                  // Avoid sending a stale copy that could override later edits.
+                  setJobDescription("");
+
+                  if (id) {
+                    setGoal("specific");
+                  }
+                }}
+                className={cn(
+                  fieldBase,
+                  fieldBorder(false),
+                  "appearance-none pr-10"
+                )}
+              >
+                <option value="">
+                  {targetJobsLoading
+                    ? "Loading target jobs..."
+                    : "No target job selected"}
+                </option>
+
+                {targetJobs.map((job) => (
+                  <option key={job.id} value={job.id}>
+                    {job.company
+                      ? `${job.jobTitle} — ${job.company}`
+                      : job.jobTitle}
+                  </option>
+                ))}
+              </select>
+
+              <ChevronDown
+                className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-tertiary"
+                aria-hidden
+              />
+            </div>
+
+            {!targetJobsLoading && targetJobs.length === 0 && (
+              <p className="mt-2 text-sm text-secondary">
+                No saved target jobs yet. Add one from the Target Jobs page.
+              </p>
             )}
-          />
-          <FieldError id="jobDescription-error" message={errors.jobDescription} />
+
+            {!targetJobsLoading && targetJobs.length > 0 && (
+              <p className="mt-2 text-sm text-secondary">
+                The selected role, company, and job description will tailor the interview.
+              </p>
+            )}
+
+            <FieldError
+              id="jobDescription-error"
+              message={errors.jobDescription}
+            />
+          </div>
         </SectionCard>
       </main>
     </form>

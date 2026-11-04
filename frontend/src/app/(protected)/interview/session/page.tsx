@@ -1,20 +1,8 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  Suspense,
-} from "react";
+import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 
-import {
-  MessageSquare,
-  Mic,
-  User,
-  MoreVertical,
-  Send,
-} from "lucide-react";
+import { Bot, MessageSquare, Mic, User, PhoneOff, Send } from "lucide-react";
 
 import { useSearchParams } from "next/navigation";
 
@@ -30,7 +18,7 @@ export default function InterviewSessionPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex h-screen items-center justify-center">
+        <div className="flex h-screen items-center justify-center bg-app text-secondary">
           Loading...
         </div>
       }
@@ -44,44 +32,31 @@ function InterviewSessionContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("id");
 
-  const [session, setSession] =
-    useState<ActiveInterviewSession | null>(null);
+  const [session, setSession] = useState<ActiveInterviewSession | null>(null);
 
-  const [mode, setMode] =
-    useState<InterviewMode>("text");
+  const [mode, setMode] = useState<InterviewMode>("text");
 
-  const [messages, setMessages] =
-    useState<InterviewMessage[]>([]);
+  const [messages, setMessages] = useState<InterviewMessage[]>([]);
 
-  const [input, setInput] =
-    useState("");
+  const [input, setInput] = useState("");
 
-  const [sending, setSending] =
-    useState(false);
+  const [sending, setSending] = useState(false);
 
-  const [ending, setEnding] =
-    useState(false);
+  const [ending, setEnding] = useState(false);
 
-  const [timeRemaining, setTimeRemaining] =
-    useState(30 * 60);
+  const [timeRemaining, setTimeRemaining] = useState(30 * 60);
 
-  const [loading, setLoading] =
-    useState(Boolean(sessionId));
+  const [loading, setLoading] = useState(Boolean(sessionId));
 
-  const [error, setError] =
-    useState<string | null>(
-      sessionId
-        ? null
-        : "Interview session id is missing."
-    );
+  const [error, setError] = useState<string | null>(
+    sessionId ? null : "Interview session id is missing.",
+  );
 
-  const messagesEndRef =
-    useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const sessionStatusRef =
-    useRef<
-      "ACTIVE" | "COMPLETED" | "ABANDONED"
-    >("ACTIVE");
+  const sessionStatusRef = useRef<"ACTIVE" | "COMPLETED" | "ABANDONED">(
+    "ACTIVE",
+  );
 
   useEffect(() => {
     if (!sessionId) {
@@ -97,24 +72,17 @@ function InterviewSessionContent() {
         setError(null);
 
         const response = await fetch(
-          `/api/interview/session?id=${encodeURIComponent(
-            activeSessionId
-          )}`,
+          `/api/interview/session?id=${encodeURIComponent(activeSessionId)}`,
           {
             method: "GET",
             cache: "no-store",
-          }
+          },
         );
 
         if (!response.ok) {
-          const body = await response
-            .json()
-            .catch(() => null);
+          const body = await response.json().catch(() => null);
 
-          throw new Error(
-            body?.error ||
-              "Unable to load interview session."
-          );
+          throw new Error(body?.error || "Unable to load interview session.");
         }
 
         const body = (await response.json()) as {
@@ -127,32 +95,22 @@ function InterviewSessionContent() {
 
         const loadedSession = {
           ...body.session,
-          messages: body.session.messages.map(
-            (message) => ({
-              ...message,
-              timestamp: new Date(
-                message.timestamp
-              ),
-            })
-          ),
+          messages: body.session.messages.map((message) => ({
+            ...message,
+            timestamp: new Date(message.timestamp),
+          })),
         };
 
         setSession(loadedSession);
         setMode(loadedSession.mode);
         setMessages(loadedSession.messages);
 
-        const remainingSeconds =
-          Math.max(
-            0,
-            Math.ceil(
-              (
-                new Date(
-                  loadedSession.endsAt
-                ).getTime() -
-                Date.now()
-              ) / 1000
-            )
-          );
+        const remainingSeconds = Math.max(
+          0,
+          Math.ceil(
+            (new Date(loadedSession.endsAt).getTime() - Date.now()) / 1000,
+          ),
+        );
 
         setTimeRemaining(remainingSeconds);
       } catch (loadError) {
@@ -163,7 +121,7 @@ function InterviewSessionContent() {
         setError(
           loadError instanceof Error
             ? loadError.message
-            : "Unable to load interview session."
+            : "Unable to load interview session.",
         );
       } finally {
         if (!cancelled) {
@@ -181,8 +139,7 @@ function InterviewSessionContent() {
 
   useEffect(() => {
     if (session) {
-      sessionStatusRef.current =
-        session.status;
+      sessionStatusRef.current = session.status;
     }
   }, [session]);
 
@@ -192,10 +149,7 @@ function InterviewSessionContent() {
     }
 
     const abandonInterview = () => {
-      if (
-        sessionStatusRef.current !==
-        "ACTIVE"
-      ) {
+      if (sessionStatusRef.current !== "ACTIVE") {
         return;
       }
 
@@ -206,28 +160,18 @@ function InterviewSessionContent() {
 
       navigator.sendBeacon(
         "/api/interview/session/complete",
-        new Blob(
-          [payload],
-          {
-            type: "application/json",
-          }
-        )
+        new Blob([payload], {
+          type: "application/json",
+        }),
       );
 
-      sessionStatusRef.current =
-        "ABANDONED";
+      sessionStatusRef.current = "ABANDONED";
     };
 
-    window.addEventListener(
-      "pagehide",
-      abandonInterview
-    );
+    window.addEventListener("pagehide", abandonInterview);
 
     return () => {
-      window.removeEventListener(
-        "pagehide",
-        abandonInterview
-      );
+      window.removeEventListener("pagehide", abandonInterview);
     };
   }, [sessionId]);
 
@@ -248,50 +192,34 @@ function InterviewSessionContent() {
     setError(null);
 
     try {
-      const response = await fetch(
-        "/api/interview/session/message",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            sessionId,
-            content,
-          }),
-        }
-      );
+      const response = await fetch("/api/interview/session/message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sessionId,
+          content,
+        }),
+      });
 
-      const body = await response
-        .json()
-        .catch(() => null);
+      const body = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(
-          body?.error ||
-            "Unable to submit interview response."
-        );
+        throw new Error(body?.error || "Unable to submit interview response.");
       }
 
-      const newMessages = (
-        body?.messages || []
-      ).map(
+      const newMessages = (body?.messages || []).map(
         (message: InterviewMessage) => ({
           ...message,
-          timestamp: new Date(
-            message.timestamp
-          ),
-        })
+          timestamp: new Date(message.timestamp),
+        }),
       );
 
-      setMessages((current) => [
-        ...current,
-        ...newMessages,
-      ]);
+      setMessages((current) => [...current, ...newMessages]);
 
       if (body?.completed === true) {
-        sessionStatusRef.current =
-          "COMPLETED";
+        sessionStatusRef.current = "COMPLETED";
 
         setSession((current) =>
           current
@@ -303,7 +231,7 @@ function InterviewSessionContent() {
                     ? "TIME_LIMIT"
                     : current.completionReason,
               }
-            : current
+            : current,
         );
 
         setTimeRemaining(0);
@@ -314,32 +242,24 @@ function InterviewSessionContent() {
       setError(
         sendError instanceof Error
           ? sendError.message
-          : "Unable to submit interview response."
+          : "Unable to submit interview response.",
       );
     } finally {
       setSending(false);
     }
   };
 
-  const completeInterview = useCallback(async (
-    reason: "USER_ENDED" | "TIME_LIMIT"
-  ) => {
-    if (
-      !sessionId ||
-      !session ||
-      session.status !== "ACTIVE" ||
-      ending
-    ) {
-      return;
-    }
+  const completeInterview = useCallback(
+    async (reason: "USER_ENDED" | "TIME_LIMIT") => {
+      if (!sessionId || !session || session.status !== "ACTIVE" || ending) {
+        return;
+      }
 
-    setEnding(true);
-    setError(null);
+      setEnding(true);
+      setError(null);
 
-    try {
-      const response = await fetch(
-        "/api/interview/session/complete",
-        {
+      try {
+        const response = await fetch("/api/interview/session/complete", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -348,143 +268,102 @@ function InterviewSessionContent() {
             sessionId,
             reason,
           }),
+        });
+
+        const body = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          if (response.status === 409) {
+            setSession((current) =>
+              current
+                ? {
+                    ...current,
+                    status: "COMPLETED",
+                  }
+                : current,
+            );
+            return;
+          }
+
+          throw new Error(body?.error || "Unable to end interview.");
         }
-      );
 
-      const body = await response
-        .json()
-        .catch(() => null);
-
-      if (!response.ok) {
-        if (response.status === 409) {
-          setSession((current) =>
-            current
-              ? {
-                  ...current,
-                  status: "COMPLETED",
-                }
-              : current
-          );
-          return;
-        }
-
-        throw new Error(
-          body?.error ||
-            "Unable to end interview."
+        const closingMessages = (body?.messages || []).map(
+          (message: InterviewMessage) => ({
+            ...message,
+            timestamp: new Date(message.timestamp),
+          }),
         );
+
+        if (closingMessages.length > 0) {
+          setMessages((current) => [...current, ...closingMessages]);
+        }
+
+        sessionStatusRef.current = "COMPLETED";
+
+        setSession((current) =>
+          current
+            ? {
+                ...current,
+                status: "COMPLETED",
+                completionReason: reason,
+              }
+            : current,
+        );
+
+        setTimeRemaining(0);
+        setInput("");
+      } catch (completeError) {
+        setError(
+          completeError instanceof Error
+            ? completeError.message
+            : "Unable to end interview.",
+        );
+      } finally {
+        setEnding(false);
       }
-
-      const closingMessages = (
-        body?.messages || []
-      ).map(
-        (message: InterviewMessage) => ({
-          ...message,
-          timestamp: new Date(
-            message.timestamp
-          ),
-        })
-      );
-
-      if (closingMessages.length > 0) {
-        setMessages((current) => [
-          ...current,
-          ...closingMessages,
-        ]);
-      }
-
-      sessionStatusRef.current =
-        "COMPLETED";
-
-      setSession((current) =>
-        current
-          ? {
-              ...current,
-              status: "COMPLETED",
-              completionReason:
-                reason,
-            }
-          : current
-      );
-
-      setTimeRemaining(0);
-      setInput("");
-    } catch (completeError) {
-      setError(
-        completeError instanceof Error
-          ? completeError.message
-          : "Unable to end interview."
-      );
-    } finally {
-      setEnding(false);
-    }
-  }, [sessionId, session, ending]);
+    },
+    [sessionId, session, ending],
+  );
 
   useEffect(() => {
-    if (
-      !session ||
-      session.status !== "ACTIVE"
-    ) {
+    if (!session || session.status !== "ACTIVE") {
       return;
     }
 
     const updateTimer = () => {
-      const remaining =
-        Math.max(
-          0,
-          Math.ceil(
-            (
-              new Date(
-                session.endsAt
-              ).getTime() -
-              Date.now()
-            ) / 1000
-          )
-        );
+      const remaining = Math.max(
+        0,
+        Math.ceil((new Date(session.endsAt).getTime() - Date.now()) / 1000),
+      );
 
       setTimeRemaining(remaining);
 
       if (remaining === 0) {
-        void completeInterview(
-          "TIME_LIMIT"
-        );
+        void completeInterview("TIME_LIMIT");
       }
     };
 
     updateTimer();
 
-    const timer =
-      window.setInterval(
-        updateTimer,
-        1000
-      );
+    const timer = window.setInterval(updateTimer, 1000);
 
     return () => {
       window.clearInterval(timer);
     };
-  }, [
-    session,
-    completeInterview,
-  ]);
+  }, [session, completeInterview]);
 
-  const interviewEnded =
-    session?.status !== "ACTIVE";
+  const interviewEnded = session?.status !== "ACTIVE";
 
-  const minutes =
-    Math.floor(
-      timeRemaining / 60
-    );
+  const minutes = Math.floor(timeRemaining / 60);
 
-  const seconds =
-    timeRemaining % 60;
+  const seconds = timeRemaining % 60;
 
-  const formattedTime =
-    `${minutes}:${seconds
-      .toString()
-      .padStart(2, "0")}`;
+  const formattedTime = `${minutes}:${seconds.toString().padStart(2, "0")}`;
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center bg-app text-secondary">
         Loading interview...
       </div>
     );
@@ -492,104 +371,60 @@ function InterviewSessionContent() {
 
   if (error || !session) {
     return (
-      <div className="flex h-screen items-center justify-center px-6 text-center">
+      <div className="flex h-screen items-center justify-center bg-app px-6 text-center">
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">
+          <h1 className="text-lg font-semibold text-primary">
             Unable to load interview
           </h1>
 
-          <p className="mt-2 text-sm text-gray-500">
-            {error ||
-              "The interview session could not be found."}
+          <p className="mt-2 text-sm text-tertiary">
+            {error || "The interview session could not be found."}
           </p>
         </div>
       </div>
     );
   }
 
-  const modes: {
-    value: InterviewMode;
-    icon: typeof MessageSquare;
-  }[] = [
-    {
-      value: "text",
-      icon: MessageSquare,
-    },
-    {
-      value: "voice",
-      icon: Mic,
-    },
-    {
-      value: "avatar",
-      icon: User,
-    },
-  ];
-
   return (
-    <div className="flex h-screen flex-col">
-      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-        <h1 className="text-lg font-semibold text-gray-900">
-          {session.title}
-        </h1>
+    <div className="flex h-screen flex-col bg-app">
+      <div className="flex items-center justify-between gap-4 border-b border-line-subtle bg-card px-6 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-tinted text-secondary">
+            <MessageSquare className="size-5" />
+          </div>
+
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-semibold text-primary">
+              {session.title}
+            </h1>
+
+            <p className="font-mono text-xs text-tertiary">AI Interviewer</p>
+          </div>
+        </div>
 
         <div className="flex items-center gap-2">
           <div
             className={cn(
-              "rounded-lg border px-3 py-2 text-sm font-medium tabular-nums",
-              timeRemaining <= 300 &&
-                !interviewEnded
-                ? "border-red-200 bg-red-50 text-red-600"
-                : "border-gray-200 bg-white text-gray-700"
+              "rounded-lg border px-3 py-2 font-mono text-sm font-medium tabular-nums",
+              timeRemaining <= 300 && !interviewEnded
+                ? "border-error bg-error-bg text-error-text"
+                : "border-line bg-card text-secondary",
             )}
           >
-            {interviewEnded
-              ? "Interview complete"
-              : formattedTime}
+            {interviewEnded ? "Interview complete" : formattedTime}
           </div>
 
           {!interviewEnded && (
             <button
               type="button"
-              onClick={() =>
-                void completeInterview(
-                  "USER_ENDED"
-                )
-              }
+              onClick={() => void completeInterview("USER_ENDED")}
               disabled={ending}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-10 items-center gap-2 rounded-full bg-red-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {ending
-                ? "Ending..."
-                : "End Interview"}
+              <PhoneOff className="size-4" />
+              {ending ? "Ending..." : "End Session"}
             </button>
           )}
-
-          <div className="flex overflow-hidden rounded-lg border border-gray-200">
-            {modes.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                onClick={() =>
-                  setMode(item.value)
-                }
-                className={cn(
-                  "flex h-9 w-12 items-center justify-center transition-colors",
-                  mode === item.value
-                    ? "bg-gray-700 text-white"
-                    : "bg-white text-gray-600 hover:bg-gray-100"
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-              </button>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            className="rounded p-2 hover:bg-gray-100"
-          >
-            <MoreVertical className="h-4 w-4 text-gray-600" />
-          </button>
         </div>
       </div>
 
@@ -601,30 +436,34 @@ function InterviewSessionContent() {
             setInput={setInput}
             onSend={handleSend}
             sending={sending}
-            disabled={
-              interviewEnded ||
-              ending
-            }
-            messagesEndRef={
-              messagesEndRef
-            }
+            disabled={interviewEnded || ending}
+            ended={interviewEnded}
+            timeRemaining={timeRemaining}
+            messagesEndRef={messagesEndRef}
           />
         )}
 
-        {mode === "voice" && (
-          <VoiceMode />
-        )}
+        {mode === "voice" && <VoiceMode />}
 
         {mode === "avatar" && (
-          <AvatarMode
-            input={input}
-            setInput={setInput}
-            onSend={handleSend}
-          />
+          <AvatarMode input={input} setInput={setInput} onSend={handleSend} />
         )}
       </div>
     </div>
   );
+}
+
+function formatMessageTime(value: Date) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function TextMode({
@@ -634,6 +473,8 @@ function TextMode({
   onSend,
   sending,
   disabled,
+  ended,
+  timeRemaining,
   messagesEndRef,
 }: {
   messages: InterviewMessage[];
@@ -642,73 +483,109 @@ function TextMode({
   onSend: () => void | Promise<void>;
   sending: boolean;
   disabled: boolean;
+  ended: boolean;
+  timeRemaining: number;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
 }) {
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-1 space-y-6 overflow-y-auto p-6">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={cn(
-              "flex max-w-[80%] items-start gap-3",
-              message.role === "candidate"
-                ? "ml-auto flex-row-reverse"
-                : ""
-            )}
-          >
-            <div className="h-8 w-8 shrink-0 rounded-full bg-gray-200" />
+      <div className="flex-1 space-y-8 overflow-y-auto px-6 py-8">
+        {messages.map((message) => {
+          const isCandidate = message.role === "candidate";
 
+          return (
             <div
+              key={message.id}
               className={cn(
-                "rounded-2xl px-4 py-3 text-sm leading-relaxed",
-                message.role === "interviewer"
-                  ? "bg-gray-100 text-gray-900"
-                  : "bg-gray-700 text-white"
+                "flex items-start gap-3",
+                isCandidate ? "justify-end" : "justify-start",
               )}
             >
-              {message.content}
+              {!isCandidate && (
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-cta text-white">
+                  <Bot className="size-5" />
+                </div>
+              )}
+
+              <div
+                className={cn(
+                  "flex max-w-[75%] flex-col gap-1",
+                  isCandidate ? "items-end" : "items-start",
+                )}
+              >
+                <div
+                  className={cn(
+                    "flex items-baseline gap-2",
+                    isCandidate && "flex-row-reverse",
+                  )}
+                >
+                  <span className="text-xs font-semibold text-primary">
+                    {isCandidate ? "You" : "Interview Bot"}
+                  </span>
+
+                  <span className="font-mono text-[11px] text-tertiary">
+                    {formatMessageTime(message.timestamp)}
+                  </span>
+                </div>
+
+                <div
+                  className={cn(
+                    "whitespace-pre-wrap px-5 py-4 text-sm leading-relaxed",
+                    isCandidate
+                      ? "rounded-2xl rounded-br-md bg-cta text-white"
+                      : "rounded-2xl rounded-tl-md border border-line-subtle bg-card text-primary shadow-sm",
+                  )}
+                >
+                  {message.content}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="border-t border-gray-200 p-4">
-        <div className="flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-3">
+      <div className="px-6 pb-3 pt-2">
+        <div className="flex items-center gap-2 rounded-2xl border border-line bg-card px-4 py-2.5 transition-colors focus-within:border-input-focus">
           <input
             type="text"
             value={input}
-            disabled={
-              sending || disabled
-            }
-            onChange={(event) =>
-              setInput(event.target.value)
-            }
+            disabled={sending || disabled}
+            onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 onSend();
               }
             }}
             placeholder={
-              disabled
-                ? "This interview has ended."
-                : "Write a message..."
+              disabled ? "This interview has ended." : "Type your response..."
             }
-            className="flex-1 bg-transparent text-sm focus:outline-none"
+            className="flex-1 bg-transparent text-sm text-primary placeholder:text-placeholder focus:outline-none disabled:cursor-not-allowed"
           />
 
           <button
             type="button"
             onClick={onSend}
-            disabled={
-              sending || disabled
-            }
-            className="rounded-lg p-2 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={sending || disabled}
+            aria-label="Send message"
+            className="flex size-9 items-center justify-center rounded-lg bg-cta text-white transition-colors hover:bg-cta-hover active:bg-cta-pressed disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <Send className="h-4 w-4 text-gray-600" />
+            <Send className="size-4" />
           </button>
+        </div>
+
+        <div className="mt-2 flex items-center justify-between px-1 font-mono text-[11px] text-tertiary">
+          <span>Press Enter to send</span>
+
+          <span>
+            {ended
+              ? "Interview complete"
+              : `Est. ${Math.max(
+                  1,
+                  Math.ceil(timeRemaining / 60),
+                )} mins remaining`}
+          </span>
         </div>
       </div>
     </div>
@@ -716,10 +593,7 @@ function TextMode({
 }
 
 function VoiceMode() {
-  const [
-    isRecording,
-    setIsRecording,
-  ] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-8">
@@ -727,17 +601,14 @@ function VoiceMode() {
         {Array.from({
           length: 40,
         }).map((_, index) => {
-          const height =
-            ((index * 37) % 80) + 20;
+          const height = ((index * 37) % 80) + 20;
 
           return (
             <div
               key={index}
               className={cn(
                 "w-1.5 rounded-full transition-all duration-300",
-                isRecording
-                  ? "animate-pulse bg-gray-900"
-                  : "bg-gray-400"
+                isRecording ? "animate-pulse bg-gray-900" : "bg-gray-400",
               )}
               style={{
                 height: `${height}%`,
@@ -749,25 +620,19 @@ function VoiceMode() {
 
       <button
         type="button"
-        onClick={() =>
-          setIsRecording(
-            (current) => !current
-          )
-        }
+        onClick={() => setIsRecording((current) => !current)}
         className={cn(
           "flex h-16 w-16 items-center justify-center rounded-full transition-colors",
           isRecording
             ? "bg-red-100 text-red-600"
-            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            : "bg-gray-100 text-gray-700 hover:bg-gray-200",
         )}
       >
         <Mic className="h-7 w-7" />
       </button>
 
       <p className="text-sm text-gray-500">
-        {isRecording
-          ? "Recording... tap to stop"
-          : "Tap to start recording"}
+        {isRecording ? "Recording... tap to stop" : "Tap to start recording"}
       </p>
     </div>
   );
@@ -795,9 +660,7 @@ function AvatarMode({
           <input
             type="text"
             value={input}
-            onChange={(event) =>
-              setInput(event.target.value)
-            }
+            onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 onSend();

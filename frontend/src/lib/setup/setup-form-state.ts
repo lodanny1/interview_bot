@@ -22,6 +22,7 @@ export interface SetupInitialValues {
   focusAreas: FocusArea[];
   targetCompany: string;
   bio: string;
+  jobDescription: string;
 }
 
 export const EMPTY_SETUP_VALUES: SetupInitialValues = {
@@ -29,6 +30,7 @@ export const EMPTY_SETUP_VALUES: SetupInitialValues = {
   focusAreas: [],
   targetCompany: "",
   bio: "",
+  jobDescription: "",
 };
 
 export const SETUP_ERROR_MESSAGES = {

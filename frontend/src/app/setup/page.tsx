@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { readSession } from "@/lib/auth/session-cookie";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/session-cookie-name";
 import { SetupForm } from "@/components/setup/SetupForm";
-import { loadUserSetup } from "@/lib/setup/user-setup-api";
+import { loadSetupJobDescription, loadUserSetup } from "@/lib/setup/user-setup-api";
 import { parseFocusAreas } from "@/lib/setup/setup-validation";
 import {
   EMPTY_SETUP_VALUES,
@@ -42,6 +42,11 @@ export default async function SetupPage() {
         focusAreas: parseFocusAreas(profile.focus_areas),
         targetCompany: profile.target_company ?? "",
         bio: profile.bio ?? "",
+        // The job description lives on the target job saved from setup.
+        jobDescription: await loadSetupJobDescription(idToken, {
+          jobTitle: profile.target_role ?? "",
+          company: profile.target_company ?? "",
+        }),
       }
     : EMPTY_SETUP_VALUES;
 

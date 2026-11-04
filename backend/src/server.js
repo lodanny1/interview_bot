@@ -13,6 +13,10 @@ const {
   validateUserSetup,
   isSetupComplete,
 } = require("./users/user-setup");
+const {
+  validateSetupTargetJob,
+  saveSetupTargetJob,
+} = require("./users/setup-target-job");
 const { requireActiveUser } = require("./auth/require-active-user");
 const {
   validateTargetJob,
@@ -231,34 +235,61 @@ app.put("/me/setup", async (req, res) => {
   }
 
   const validation = validateUserSetup(req.body);
+  // The optional job description makes the setup's role and company a target job.
+  const jobValidation = validateSetupTargetJob(req.body);
 
-  if (!validation.ok) {
+  if (!validation.ok || !jobValidation.ok) {
     return res.status(400).json({
       error: "Some setup information is missing or invalid",
-      fieldErrors: validation.fieldErrors,
+      fieldErrors: {
+        ...(validation.ok ? {} : validation.fieldErrors),
+        ...(jobValidation.ok ? {} : jobValidation.fieldErrors),
+      },
     });
   }
+
+  let profile;
 
   try {
     // The setup page no longer asks for experience level, so keep any value
     // already saved instead of clearing it.
     const existingProfile = await getUserProfile(user.id);
 
-    const profile = await upsertUserProfile({
+    profile = await upsertUserProfile({
       userId: user.id,
       experienceLevel: existingProfile?.experience_level ?? null,
       ...validation.data,
-    });
-
-    return res.status(200).json({
-      profile,
-      setupCompleted: isSetupComplete(profile),
     });
   } catch (error) {
     console.error("PUT /me/setup failed:", error);
 
     return res.status(500).json({
       error: "Unable to save setup information",
+    });
+  }
+
+  try {
+    // Saved to target_jobs, so it appears on the Target Jobs page.
+    const targetJob = jobValidation.job
+      ? await saveSetupTargetJob({
+          userId: user.id,
+          job: jobValidation.job,
+          repository: { listTargetJobs, createTargetJob, updateTargetJobById },
+        })
+      : null;
+
+    return res.status(200).json({
+      profile,
+      targetJob,
+      setupCompleted: isSetupComplete(profile),
+    });
+  } catch (error) {
+    // The profile is saved; only the target job failed. Retrying setup saves
+    // it again without making a duplicate.
+    console.error("PUT /me/setup target job failed:", error);
+
+    return res.status(500).json({
+      error: "Unable to save target job",
     });
   }
 });

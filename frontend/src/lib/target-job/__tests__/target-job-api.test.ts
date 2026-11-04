@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   loadTargetJob,
-  loadTargetJobDefaults,
   removeTargetJob,
   resetMockTargetJob,
   saveTargetJob,
@@ -145,51 +144,3 @@ describe("target job API", () => {
   });
 });
 
-describe("loadTargetJobDefaults", () => {
-  beforeEach(() => {
-    vi.stubEnv("BACKEND_URL", "http://backend.test");
-    vi.stubEnv("USE_MOCK_DATA", "false");
-    vi.spyOn(console, "error").mockImplementation(() => {});
-  });
-
-  function mockMe(response: { status: number; body?: unknown } | Error) {
-    const fetchMock = vi.fn(async () => {
-      if (response instanceof Error) throw response;
-      return new Response(JSON.stringify(response.body ?? {}), { status: response.status });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    return fetchMock;
-  }
-
-  it("uses the target role and company from Complete User Setup", async () => {
-    const fetchMock = mockMe({
-      status: 200,
-      body: { user: {}, profile: { target_role: " Data Analyst ", target_company: "Acme" } },
-    });
-
-    await expect(loadTargetJobDefaults("id-token")).resolves.toEqual({
-      jobTitle: "Data Analyst",
-      company: "Acme",
-    });
-    expect(fetchMock).toHaveBeenCalledWith(
-      "http://backend.test/me",
-      expect.objectContaining({ headers: { Authorization: "Bearer id-token" } })
-    );
-  });
-
-  it("fills just the role when no company was entered", async () => {
-    mockMe({ status: 200, body: { profile: { target_role: "Data Analyst", target_company: null } } });
-    await expect(loadTargetJobDefaults("t")).resolves.toEqual({ jobTitle: "Data Analyst", company: "" });
-  });
-
-  it("returns null when there's nothing to fill or the profile can't load", async () => {
-    mockMe({ status: 200, body: { profile: null } });
-    await expect(loadTargetJobDefaults("t")).resolves.toBeNull();
-
-    mockMe({ status: 500 });
-    await expect(loadTargetJobDefaults("t")).resolves.toBeNull();
-
-    mockMe(new TypeError("fetch failed"));
-    await expect(loadTargetJobDefaults("t")).resolves.toBeNull();
-  });
-});

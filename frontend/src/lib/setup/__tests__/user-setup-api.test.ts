@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { loadUserSetup, saveUserSetup } from "@/lib/setup/user-setup-api";
+import {
+  loadSetupJobDescription,
+  loadUserSetup,
+  saveUserSetup,
+} from "@/lib/setup/user-setup-api";
 
 const INPUT = {
   targetRole: "Software Engineer",
   focusAreas: ["TECHNICAL" as const],
   targetCompany: "",
   bio: "",
+  jobDescription: "",
 };
 
 const PROFILE = {
@@ -86,5 +91,42 @@ describe("user setup API", () => {
 
     mockFetch({ status: 401 });
     await expect(loadUserSetup("t")).resolves.toEqual({ ok: false, reason: "unauthenticated" });
+  });
+});
+
+describe("loadSetupJobDescription", () => {
+  beforeEach(() => {
+    vi.stubEnv("BACKEND_URL", "http://backend.test");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  const JOBS = {
+    targetJobs: [
+      { job_title: "Data Analyst", company: null, description: "Other job" },
+      { job_title: "Software Engineer", company: "Acme", description: "Saved from setup" },
+    ],
+  };
+
+  it("finds the target job saved from setup by title and company", async () => {
+    const fetchMock = mockFetch({ status: 200, body: JOBS });
+
+    await expect(
+      loadSetupJobDescription("id-token", { jobTitle: " software engineer", company: "ACME" })
+    ).resolves.toBe("Saved from setup");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://backend.test/me/target-jobs",
+      expect.objectContaining({ headers: { Authorization: "Bearer id-token" } })
+    );
+  });
+
+  it("returns an empty string when nothing matches or loading fails", async () => {
+    mockFetch({ status: 200, body: JOBS });
+    await expect(loadSetupJobDescription("t", { jobTitle: "Designer", company: "" })).resolves.toBe("");
+
+    mockFetch({ status: 500 });
+    await expect(loadSetupJobDescription("t", { jobTitle: "Data Analyst", company: "" })).resolves.toBe("");
+
+    mockFetch(new TypeError("fetch failed"));
+    await expect(loadSetupJobDescription("t", { jobTitle: "Data Analyst", company: "" })).resolves.toBe("");
   });
 });

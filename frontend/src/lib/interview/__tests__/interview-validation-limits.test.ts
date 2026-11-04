@@ -15,6 +15,7 @@ const fieldErrorsFor = (jobDescription: string) => {
     mode: "text",
     jobDescription,
     resumeId: "",
+    targetJobId: "",
   });
   return result.ok ? {} : result.fieldErrors;
 };

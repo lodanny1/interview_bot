@@ -1,6 +1,15 @@
 // Validation for the Complete User Setup form (Issue #05). Shared by the client
 // form and the server action so both enforce the same rules. The backend has
 // the same rules in backend/src/users/user-setup.js; keep the two in sync.
+//
+// The "Target job" section (job title = target role, company = target
+// company, job description) is saved as a target job when a description is
+// given, so its description follows the Target Jobs page's rules.
+
+import {
+  TARGET_JOB_LIMITS,
+  validateTargetJob,
+} from "@/lib/target-job/target-job-validation";
 
 export const FOCUS_AREAS = [
   { value: "BEHAVIORAL", label: "Behavioral" },
@@ -17,6 +26,7 @@ export const SETUP_LIMITS = {
   targetCompany: 100,
   // Long text boxes share one limit across the app.
   bio: 10000,
+  jobDescription: TARGET_JOB_LIMITS.descriptionMaxChars,
 } as const;
 
 export interface SetupInput {
@@ -25,6 +35,8 @@ export interface SetupInput {
   // Optional fields.
   targetCompany: string;
   bio: string;
+  // Saved as a target job when given.
+  jobDescription: string;
 }
 
 export type SetupFieldErrors = Partial<Record<keyof SetupInput, string>>;
@@ -59,11 +71,13 @@ export function validateSetup(input: {
   focusAreas?: unknown;
   targetCompany?: unknown;
   bio?: unknown;
+  jobDescription?: unknown;
 }): SetupValidationResult {
   const targetRole = asString(input.targetRole);
   const focusAreas = asStringList(input.focusAreas);
   const targetCompany = asString(input.targetCompany);
   const bio = asString(input.bio);
+  const jobDescription = asString(input.jobDescription);
 
   const fieldErrors: SetupFieldErrors = {};
 
@@ -87,6 +101,14 @@ export function validateSetup(input: {
     fieldErrors.bio = SETUP_VALIDATION_MESSAGES.bioTooLong;
   }
 
+  // Optional, but when given it must be a usable job description.
+  if (jobDescription) {
+    const job = validateTargetJob({ jobTitle: targetRole, company: targetCompany, description: jobDescription });
+    if (!job.ok && job.fieldErrors.description) {
+      fieldErrors.jobDescription = job.fieldErrors.description;
+    }
+  }
+
   if (Object.keys(fieldErrors).length > 0) {
     return { ok: false, fieldErrors };
   }
@@ -98,6 +120,7 @@ export function validateSetup(input: {
       focusAreas: focusAreas as FocusArea[],
       targetCompany,
       bio,
+      jobDescription,
     },
   };
 }

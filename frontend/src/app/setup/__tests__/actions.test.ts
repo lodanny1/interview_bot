@@ -66,6 +66,7 @@ describe("completeSetupAction", () => {
       focusAreas: ["BEHAVIORAL", "TECHNICAL"],
       targetCompany: "Acme",
       bio: "",
+      jobDescription: "",
     });
     expect(redirect).toHaveBeenCalledWith(POST_SETUP_REDIRECT);
   });

@@ -1,8 +1,8 @@
 "use client";
 
 // Complete User Setup form (Issue #05). Collects what Interview Bot needs to
-// personalize practice: target role, experience level and focus areas
-// (required), plus target company and extra context (optional).
+// personalize practice: target role and focus areas (required), plus target
+// company and extra context (optional).
 // The logic follows SignUpForm: validate in the browser, then the server
 // action validates again, saves, and redirects to the dashboard.
 
@@ -17,11 +17,9 @@ import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  EXPERIENCE_LEVELS,
   FOCUS_AREAS,
   SETUP_LIMITS,
   validateSetup,
-  type ExperienceLevel,
   type FocusArea,
   type SetupFieldErrors,
 } from "@/lib/setup/setup-validation";
@@ -43,9 +41,6 @@ const inputClass =
 
 export function SetupForm({ action, initialValues }: SetupFormProps) {
   const [targetRole, setTargetRole] = useState(initialValues.targetRole);
-  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel | "">(
-    initialValues.experienceLevel
-  );
   const [focusAreas, setFocusAreas] = useState<FocusArea[]>(initialValues.focusAreas);
   const [targetCompany, setTargetCompany] = useState(initialValues.targetCompany);
   const [bio, setBio] = useState(initialValues.bio);
@@ -74,7 +69,6 @@ export function SetupForm({ action, initialValues }: SetupFormProps) {
 
     const validation = validateSetup({
       targetRole,
-      experienceLevel,
       focusAreas,
       targetCompany,
       bio,
@@ -87,7 +81,6 @@ export function SetupForm({ action, initialValues }: SetupFormProps) {
     setClientErrors({});
     const formData = new FormData();
     formData.set("targetRole", validation.data.targetRole);
-    formData.set("experienceLevel", validation.data.experienceLevel);
     for (const area of validation.data.focusAreas) {
       formData.append("focusAreas", area);
     }
@@ -145,24 +138,6 @@ export function SetupForm({ action, initialValues }: SetupFormProps) {
       </Field>
 
       <ChoiceGroup
-        id="experienceLevel"
-        legend="Experience level"
-        error={fieldErrors.experienceLevel}
-      >
-        {EXPERIENCE_LEVELS.map((level) => (
-          <Choice
-            key={level.value}
-            type="radio"
-            name="experienceLevel"
-            value={level.value}
-            label={level.label}
-            checked={experienceLevel === level.value}
-            onChange={() => setExperienceLevel(level.value)}
-          />
-        ))}
-      </ChoiceGroup>
-
-      <ChoiceGroup
         id="focusAreas"
         legend="What do you want to practice?"
         hint="Choose all that apply."
@@ -211,7 +186,7 @@ export function SetupForm({ action, initialValues }: SetupFormProps) {
         id="bio"
         label="Anything else we should know?"
         optional
-        hint={`${bio.length}/${SETUP_LIMITS.bio}`}
+        hint={`${bio.length.toLocaleString("en-US")}/${SETUP_LIMITS.bio.toLocaleString("en-US")}`}
         error={fieldErrors.bio}
       >
         {(describedBy) => (

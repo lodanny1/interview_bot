@@ -2,14 +2,6 @@
 // form and the server action so both enforce the same rules. The backend has
 // the same rules in backend/src/users/user-setup.js; keep the two in sync.
 
-export const EXPERIENCE_LEVELS = [
-  { value: "INTERN", label: "Intern / Student" },
-  { value: "ENTRY", label: "Entry level (0–2 years)" },
-  { value: "MID", label: "Mid level (3–5 years)" },
-  { value: "SENIOR", label: "Senior (6+ years)" },
-  { value: "LEAD", label: "Lead / Manager" },
-] as const;
-
 export const FOCUS_AREAS = [
   { value: "BEHAVIORAL", label: "Behavioral" },
   { value: "TECHNICAL", label: "Technical" },
@@ -18,18 +10,17 @@ export const FOCUS_AREAS = [
   { value: "LEADERSHIP", label: "Leadership" },
 ] as const;
 
-export type ExperienceLevel = (typeof EXPERIENCE_LEVELS)[number]["value"];
 export type FocusArea = (typeof FOCUS_AREAS)[number]["value"];
 
 export const SETUP_LIMITS = {
   targetRole: 100,
   targetCompany: 100,
-  bio: 500,
+  // Long text boxes share one limit across the app.
+  bio: 10000,
 } as const;
 
 export interface SetupInput {
   targetRole: string;
-  experienceLevel: ExperienceLevel;
   focusAreas: FocusArea[];
   // Optional fields.
   targetCompany: string;
@@ -45,14 +36,12 @@ export type SetupValidationResult =
 export const SETUP_VALIDATION_MESSAGES = {
   targetRoleRequired: "Target role is required.",
   targetRoleTooLong: `Target role must be ${SETUP_LIMITS.targetRole} characters or fewer.`,
-  experienceLevelRequired: "Choose your experience level.",
   focusAreasRequired: "Choose at least one focus area.",
   focusAreasInvalid: "One of the focus areas isn't valid.",
   targetCompanyTooLong: `Company must be ${SETUP_LIMITS.targetCompany} characters or fewer.`,
-  bioTooLong: `Keep this to ${SETUP_LIMITS.bio} characters or fewer.`,
+  bioTooLong: `Keep this to ${SETUP_LIMITS.bio.toLocaleString("en-US")} characters or fewer.`,
 } as const;
 
-const EXPERIENCE_VALUES: readonly string[] = EXPERIENCE_LEVELS.map((l) => l.value);
 const FOCUS_VALUES: readonly string[] = FOCUS_AREAS.map((a) => a.value);
 
 function asString(value: unknown): string {
@@ -67,13 +56,11 @@ function asStringList(value: unknown): string[] {
 
 export function validateSetup(input: {
   targetRole?: unknown;
-  experienceLevel?: unknown;
   focusAreas?: unknown;
   targetCompany?: unknown;
   bio?: unknown;
 }): SetupValidationResult {
   const targetRole = asString(input.targetRole);
-  const experienceLevel = asString(input.experienceLevel);
   const focusAreas = asStringList(input.focusAreas);
   const targetCompany = asString(input.targetCompany);
   const bio = asString(input.bio);
@@ -84,10 +71,6 @@ export function validateSetup(input: {
     fieldErrors.targetRole = SETUP_VALIDATION_MESSAGES.targetRoleRequired;
   } else if (targetRole.length > SETUP_LIMITS.targetRole) {
     fieldErrors.targetRole = SETUP_VALIDATION_MESSAGES.targetRoleTooLong;
-  }
-
-  if (!EXPERIENCE_VALUES.includes(experienceLevel)) {
-    fieldErrors.experienceLevel = SETUP_VALIDATION_MESSAGES.experienceLevelRequired;
   }
 
   if (focusAreas.length === 0) {
@@ -112,7 +95,6 @@ export function validateSetup(input: {
     ok: true,
     data: {
       targetRole,
-      experienceLevel: experienceLevel as ExperienceLevel,
       focusAreas: focusAreas as FocusArea[],
       targetCompany,
       bio,
@@ -128,10 +110,4 @@ export function parseFocusAreas(value: string | null | undefined): FocusArea[] {
     .split(",")
     .map((part) => part.trim())
     .filter((part): part is FocusArea => FOCUS_VALUES.includes(part));
-}
-
-export function parseExperienceLevel(
-  value: string | null | undefined
-): ExperienceLevel | "" {
-  return value && EXPERIENCE_VALUES.includes(value) ? (value as ExperienceLevel) : "";
 }

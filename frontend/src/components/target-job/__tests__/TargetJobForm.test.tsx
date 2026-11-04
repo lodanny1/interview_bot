@@ -173,3 +173,55 @@ describe("TargetJobForm", () => {
     expect(link.getAttribute("href")).toBe("/login");
   });
 });
+
+describe("TargetJobForm filled from Complete User Setup", () => {
+  const DEFAULTS = { jobTitle: "Data Analyst", company: "Example Co" };
+
+  function renderForm(props: { initialTargetJob?: TargetJob | null; removeAction?: TargetJobAction } = {}) {
+    const user = userEvent.setup();
+    render(
+      <TargetJobForm
+        saveAction={vi.fn<TargetJobAction>(async () => ({}))}
+        removeAction={props.removeAction ?? vi.fn<TargetJobAction>(async () => ({}))}
+        initialTargetJob={props.initialTargetJob ?? null}
+        defaults={DEFAULTS}
+      />
+    );
+    return user;
+  }
+
+  const value = (label: string | RegExp) => (screen.getByLabelText(label) as HTMLInputElement).value;
+
+  it("pre-fills the job title and company when nothing is saved yet", () => {
+    renderForm();
+
+    expect(value("Job title")).toBe("Data Analyst");
+    expect(value(/Company/)).toBe("Example Co");
+    expect((screen.getByLabelText("Job description") as HTMLTextAreaElement).value).toBe("");
+    expect(screen.getByText(/filled in your target role and company from your profile setup/)).toBeTruthy();
+  });
+
+  it("uses the saved job instead when there is one", async () => {
+    const user = renderForm({ initialTargetJob: { ...SAVED, company: null } });
+
+    expect(screen.queryByText(/from your profile setup/)).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Edit" }));
+    expect(value("Job title")).toBe(SAVED.jobTitle);
+    expect(value(/Company/)).toBe("");
+  });
+
+  it("goes back to the setup info after the saved job is removed", async () => {
+    const removeAction = vi.fn<TargetJobAction>(async () => ({
+      targetJob: null,
+      notice: TARGET_JOB_NOTICES.removed,
+    }));
+    const user = renderForm({ initialTargetJob: SAVED, removeAction });
+
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    await user.click(screen.getByRole("button", { name: "Yes, remove it" }));
+
+    await screen.findByText(TARGET_JOB_NOTICES.removed);
+    expect(value("Job title")).toBe("Data Analyst");
+    expect(value(/Company/)).toBe("Example Co");
+  });
+});

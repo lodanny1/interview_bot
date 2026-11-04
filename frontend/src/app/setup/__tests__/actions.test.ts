@@ -34,7 +34,6 @@ function mockSessionCookie(value: string | undefined) {
 function setupForm(overrides: Record<string, string | string[]> = {}) {
   const values: Record<string, string | string[]> = {
     targetRole: "Software Engineer",
-    experienceLevel: "ENTRY",
     focusAreas: ["BEHAVIORAL", "TECHNICAL"],
     targetCompany: "",
     bio: "",
@@ -64,7 +63,6 @@ describe("completeSetupAction", () => {
 
     expect(saveUserSetup).toHaveBeenCalledWith("id-token", {
       targetRole: "Software Engineer",
-      experienceLevel: "ENTRY",
       focusAreas: ["BEHAVIORAL", "TECHNICAL"],
       targetCompany: "Acme",
       bio: "",
@@ -73,12 +71,11 @@ describe("completeSetupAction", () => {
   });
 
   it("does not submit when required info is missing (Scenario 2)", async () => {
-    const data = setupForm({ targetRole: "", experienceLevel: "", focusAreas: [] });
+    const data = setupForm({ targetRole: "", focusAreas: [] });
 
     await expect(run(data)).resolves.toEqual({
       fieldErrors: {
         targetRole: MSG.targetRoleRequired,
-        experienceLevel: MSG.experienceLevelRequired,
         focusAreas: MSG.focusAreasRequired,
       },
     });

@@ -7,12 +7,17 @@
 import { useState } from "react";
 import { InterviewInsightsPanel } from "@/components/insights/InterviewInsightsPanel";
 import { TargetJobForm } from "./TargetJobForm";
-import type { TargetJob, TargetJobAction } from "@/lib/target-job/target-job-form-state";
+import type {
+  TargetJob,
+  TargetJobAction,
+  TargetJobDefaults,
+} from "@/lib/target-job/target-job-form-state";
 
 interface TargetJobWorkspaceProps {
   saveAction: TargetJobAction;
   removeAction: TargetJobAction;
   initialTargetJob: TargetJob | null;
+  defaults?: TargetJobDefaults | null;
   loadError?: string;
 }
 

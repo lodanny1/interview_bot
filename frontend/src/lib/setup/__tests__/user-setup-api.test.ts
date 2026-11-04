@@ -3,7 +3,6 @@ import { loadUserSetup, saveUserSetup } from "@/lib/setup/user-setup-api";
 
 const INPUT = {
   targetRole: "Software Engineer",
-  experienceLevel: "ENTRY" as const,
   focusAreas: ["TECHNICAL" as const],
   targetCompany: "",
   bio: "",

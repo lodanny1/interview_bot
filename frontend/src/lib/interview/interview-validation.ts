@@ -12,7 +12,8 @@ import {
 } from "./interview-options";
 
 export const TITLE_MAX_LENGTH = 100;
-export const JOB_DESCRIPTION_MAX_LENGTH = 5000;
+// Long text boxes share one 10,000-character limit across the app.
+export const JOB_DESCRIPTION_MAX_LENGTH = 10000;
 
 export type InterviewFieldErrors = Partial<Record<keyof StartInterviewInput, string>>;
 
@@ -82,7 +83,7 @@ export function validateStartInterview(raw: RawStartInterview): StartInterviewVa
 
   const jobDescription = text(raw.jobDescription);
   if (jobDescription.length > JOB_DESCRIPTION_MAX_LENGTH) {
-    fieldErrors.jobDescription = `Keep the job description under ${JOB_DESCRIPTION_MAX_LENGTH} characters.`;
+    fieldErrors.jobDescription = `Keep the job description under ${JOB_DESCRIPTION_MAX_LENGTH.toLocaleString("en-US")} characters.`;
   }
 
   if (Object.keys(fieldErrors).length > 0) {

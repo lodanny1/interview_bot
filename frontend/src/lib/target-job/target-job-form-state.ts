@@ -9,6 +9,13 @@ export interface TargetJob {
   updatedAt: string;
 }
 
+// Values from Complete User Setup (#05) that fill the form when no target job
+// is saved yet: target role becomes the job title, target company the company.
+export interface TargetJobDefaults {
+  jobTitle: string;
+  company: string;
+}
+
 export interface TargetJobFormState {
   // The saved job after a successful save, or null after it's removed.
   targetJob?: TargetJob | null;

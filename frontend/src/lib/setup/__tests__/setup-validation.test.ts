@@ -1,14 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   SETUP_VALIDATION_MESSAGES as MSG,
-  parseExperienceLevel,
   parseFocusAreas,
   validateSetup,
 } from "@/lib/setup/setup-validation";
 
 const VALID = {
   targetRole: "  Software Engineer ",
-  experienceLevel: "ENTRY",
   focusAreas: ["BEHAVIORAL", "TECHNICAL", "BEHAVIORAL"],
   targetCompany: " Acme ",
   bio: "",
@@ -20,7 +18,6 @@ describe("validateSetup", () => {
       ok: true,
       data: {
         targetRole: "Software Engineer",
-        experienceLevel: "ENTRY",
         focusAreas: ["BEHAVIORAL", "TECHNICAL"],
         targetCompany: "Acme",
         bio: "",
@@ -33,7 +30,6 @@ describe("validateSetup", () => {
       ok: false,
       fieldErrors: {
         targetRole: MSG.targetRoleRequired,
-        experienceLevel: MSG.experienceLevelRequired,
         focusAreas: MSG.focusAreasRequired,
       },
     });
@@ -44,18 +40,11 @@ describe("validateSetup", () => {
     expect(result).toEqual({ ok: false, fieldErrors: { targetRole: MSG.targetRoleRequired } });
   });
 
-  it("rejects values that aren't in the option lists", () => {
-    const result = validateSetup({
-      ...VALID,
-      experienceLevel: "WIZARD",
-      focusAreas: ["TECHNICAL", "JUGGLING"],
-    });
+  it("rejects focus areas that aren't in the option list", () => {
+    const result = validateSetup({ ...VALID, focusAreas: ["TECHNICAL", "JUGGLING"] });
     expect(result).toEqual({
       ok: false,
-      fieldErrors: {
-        experienceLevel: MSG.experienceLevelRequired,
-        focusAreas: MSG.focusAreasInvalid,
-      },
+      fieldErrors: { focusAreas: MSG.focusAreasInvalid },
     });
   });
 
@@ -64,7 +53,7 @@ describe("validateSetup", () => {
       ...VALID,
       targetRole: "x".repeat(101),
       targetCompany: "x".repeat(101),
-      bio: "x".repeat(501),
+      bio: "x".repeat(10001),
     });
     expect(result).toEqual({
       ok: false,
@@ -74,6 +63,11 @@ describe("validateSetup", () => {
         bio: MSG.bioTooLong,
       },
     });
+  });
+
+  it("allows the extra context box up to 10,000 characters", () => {
+    expect(validateSetup({ ...VALID, bio: "x".repeat(10000) }).ok).toBe(true);
+    expect(MSG.bioTooLong).toContain("10,000");
   });
 
   it("ignores non-string input instead of throwing", () => {
@@ -89,11 +83,5 @@ describe("saved profile parsing", () => {
       "TECHNICAL",
     ]);
     expect(parseFocusAreas(null)).toEqual([]);
-  });
-
-  it("only returns a known experience level", () => {
-    expect(parseExperienceLevel("MID")).toBe("MID");
-    expect(parseExperienceLevel("unknown")).toBe("");
-    expect(parseExperienceLevel(null)).toBe("");
   });
 });

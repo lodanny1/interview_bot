@@ -2,8 +2,6 @@
 // for the setup form. The frontend has the same rules in
 // frontend/src/lib/setup/setup-validation.ts; keep the two in sync.
 
-const EXPERIENCE_LEVELS = ["INTERN", "ENTRY", "MID", "SENIOR", "LEAD"];
-
 const FOCUS_AREAS = [
   "BEHAVIORAL",
   "TECHNICAL",
@@ -15,7 +13,8 @@ const FOCUS_AREAS = [
 const LIMITS = {
   targetRole: 100,
   targetCompany: 100,
-  bio: 500,
+  // Long text boxes share one limit across the app.
+  bio: 10000,
 };
 
 function asTrimmedString(value) {
@@ -28,7 +27,6 @@ function validateUserSetup(body) {
   const input = body && typeof body === "object" ? body : {};
 
   const targetRole = asTrimmedString(input.targetRole);
-  const experienceLevel = asTrimmedString(input.experienceLevel);
   const targetCompany = asTrimmedString(input.targetCompany);
   const bio = asTrimmedString(input.bio);
   const focusAreas = Array.isArray(input.focusAreas)
@@ -43,10 +41,6 @@ function validateUserSetup(body) {
     fieldErrors.targetRole = `Target role must be ${LIMITS.targetRole} characters or fewer.`;
   }
 
-  if (!EXPERIENCE_LEVELS.includes(experienceLevel)) {
-    fieldErrors.experienceLevel = "Choose your experience level.";
-  }
-
   if (focusAreas.length === 0) {
     fieldErrors.focusAreas = "Choose at least one focus area.";
   } else if (!focusAreas.every((area) => FOCUS_AREAS.includes(area))) {
@@ -58,7 +52,7 @@ function validateUserSetup(body) {
   }
 
   if (bio.length > LIMITS.bio) {
-    fieldErrors.bio = `Keep this to ${LIMITS.bio} characters or fewer.`;
+    fieldErrors.bio = `Keep this to ${LIMITS.bio.toLocaleString("en-US")} characters or fewer.`;
   }
 
   if (Object.keys(fieldErrors).length > 0) {
@@ -69,7 +63,6 @@ function validateUserSetup(body) {
     ok: true,
     data: {
       targetRole,
-      experienceLevel,
       focusAreas: focusAreas.join(","),
       targetCompany: targetCompany || null,
       bio: bio || null,
@@ -80,17 +73,12 @@ function validateUserSetup(body) {
 // A user has completed setup once every required field is saved.
 // Signup can save a target role on its own, so that alone doesn't count.
 function isSetupComplete(profile) {
-  return Boolean(
-    profile &&
-      profile.target_role &&
-      profile.experience_level &&
-      profile.focus_areas
-  );
+  return Boolean(profile && profile.target_role && profile.focus_areas);
 }
 
 module.exports = {
-  EXPERIENCE_LEVELS,
   FOCUS_AREAS,
+  LIMITS,
   validateUserSetup,
   isSetupComplete,
 };

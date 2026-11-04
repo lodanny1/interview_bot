@@ -21,7 +21,6 @@ function setup(action: SetupAction, initialValues: SetupInitialValues = EMPTY_SE
 
   async function fillRequired() {
     await user.type(screen.getByLabelText("Target role"), "Software Engineer");
-    await user.click(screen.getByLabelText(/Entry level/));
     await user.click(screen.getByLabelText("Behavioral"));
     await user.click(screen.getByLabelText("Technical"));
   }
@@ -37,7 +36,6 @@ describe("SetupForm", () => {
     await user.click(submit());
 
     expect(screen.getByText(MSG.targetRoleRequired)).toBeTruthy();
-    expect(screen.getByText(MSG.experienceLevelRequired)).toBeTruthy();
     expect(screen.getByText(MSG.focusAreasRequired)).toBeTruthy();
     expect(screen.getByLabelText("Target role").getAttribute("aria-invalid")).toBe("true");
     expect(action).not.toHaveBeenCalled();
@@ -54,7 +52,7 @@ describe("SetupForm", () => {
     await waitFor(() => expect(action).toHaveBeenCalledTimes(1));
     const formData = action.mock.calls[0][1];
     expect(formData.get("targetRole")).toBe("Software Engineer");
-    expect(formData.get("experienceLevel")).toBe("ENTRY");
+    expect(formData.has("experienceLevel")).toBe(false);
     expect(formData.getAll("focusAreas")).toEqual(["BEHAVIORAL", "TECHNICAL"]);
     expect(formData.get("targetCompany")).toBe("Acme");
   });
@@ -98,18 +96,32 @@ describe("SetupForm", () => {
   it("pre-fills saved setup info for returning users", () => {
     setup(vi.fn<SetupAction>(), {
       targetRole: "Data Analyst",
-      experienceLevel: "MID",
       focusAreas: ["TECHNICAL"],
       targetCompany: "Acme",
       bio: "Prefers short answers",
     });
 
     expect((screen.getByLabelText("Target role") as HTMLInputElement).value).toBe("Data Analyst");
-    expect((screen.getByLabelText(/Mid level/) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByLabelText("Technical") as HTMLInputElement).checked).toBe(true);
     expect((screen.getByLabelText("Behavioral") as HTMLInputElement).checked).toBe(false);
     expect((screen.getByLabelText(/Anything else/) as HTMLTextAreaElement).value).toBe(
       "Prefers short answers"
     );
+  });
+});
+
+describe("SetupForm fields", () => {
+  it("doesn't ask for an experience level", () => {
+    render(<SetupForm action={vi.fn<SetupAction>()} initialValues={EMPTY_SETUP_VALUES} />);
+
+    expect(screen.queryByText("Experience level")).toBeNull();
+    expect(screen.queryByLabelText(/Entry level/)).toBeNull();
+  });
+
+  it("shows a 10,000-character limit on the extra context box", () => {
+    render(<SetupForm action={vi.fn<SetupAction>()} initialValues={EMPTY_SETUP_VALUES} />);
+
+    expect(screen.getByText("0/10,000")).toBeTruthy();
+    expect((screen.getByLabelText(/Anything else/) as HTMLTextAreaElement).maxLength).toBe(10000);
   });
 });

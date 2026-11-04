@@ -8,10 +8,7 @@ import { readSession } from "@/lib/auth/session-cookie";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/session-cookie-name";
 import { SetupForm } from "@/components/setup/SetupForm";
 import { loadUserSetup } from "@/lib/setup/user-setup-api";
-import {
-  parseExperienceLevel,
-  parseFocusAreas,
-} from "@/lib/setup/setup-validation";
+import { parseFocusAreas } from "@/lib/setup/setup-validation";
 import {
   EMPTY_SETUP_VALUES,
   type SetupInitialValues,
@@ -42,7 +39,6 @@ export default async function SetupPage() {
   const initialValues: SetupInitialValues = profile
     ? {
         targetRole: profile.target_role ?? "",
-        experienceLevel: parseExperienceLevel(profile.experience_level),
         focusAreas: parseFocusAreas(profile.focus_areas),
         targetCompany: profile.target_company ?? "",
         bio: profile.bio ?? "",

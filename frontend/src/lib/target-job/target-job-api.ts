@@ -6,7 +6,7 @@
 // used instead of the backend.
 import "server-only";
 
-import type { TargetJob } from "./target-job-form-state";
+import type { TargetJob, TargetJobDefaults } from "./target-job-form-state";
 import type { TargetJobFieldErrors, TargetJobInput } from "./target-job-validation";
 
 type Failure = "unauthenticated" | "unavailable";
@@ -164,6 +164,39 @@ export async function removeTargetJob(idToken: string): Promise<RemoveTargetJobR
     return { ok: false, reason: "unavailable" };
   }
   return { ok: true };
+}
+
+// The target role and company the user entered on Complete User Setup (#05),
+// from GET /me. Used to fill the form when no target job is saved yet. Returns
+// null when there's nothing to fill or the profile can't be loaded; the page
+// works the same either way.
+export async function loadTargetJobDefaults(idToken: string): Promise<TargetJobDefaults | null> {
+  if (isMockMode()) {
+    // Matches the mock profile on the settings page.
+    return { jobTitle: "Software Engineer", company: "Example Company" };
+  }
+
+  const base = process.env.BACKEND_URL;
+  if (!base) return null;
+
+  try {
+    const response = await fetch(`${base}/me`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${idToken}` },
+      cache: "no-store",
+    });
+    if (!response.ok) return null;
+
+    const data = (await response.json()) as {
+      profile?: { target_role?: string | null; target_company?: string | null } | null;
+    };
+    const jobTitle = data.profile?.target_role?.trim() ?? "";
+    const company = data.profile?.target_company?.trim() ?? "";
+    return jobTitle || company ? { jobTitle, company } : null;
+  } catch (error) {
+    console.error("Loading target job defaults failed:", error);
+    return null;
+  }
 }
 
 // Mock mode only: lets the interview insights mock follow the saved job.

@@ -26,11 +26,13 @@ const { createResumeRouter } = require("./resumes/resume-routes");
 const resumeRepository = require("./resumes/resume-repository");
 const resumeStorage = require("./resumes/resume-storage");
 const resumeExtractionService = require("./resumes/resume-extraction-service");
+const { createKnowledgeRouter } = require("./knowledge/knowledge-routes");
 
 const { createInterviewRouter } = require("./interview/interview-routes");
 const interviewRepository = require("./interview/interview-repository");
 const interviewAiService = require("./interview/interview-ai-service");
 const interviewResumeContextService = require("./interview/resume-context-service");
+const interviewKnowledge = require("./interview/interview-knowledge");
 
 const app = express();
 app.disable("x-powered-by");
@@ -332,12 +334,24 @@ app.use(
   })
 );
 
+// Role & Company Knowledge Retrieval (Issue #16). Interview insights for the
+// saved target job; routes are in knowledge/knowledge-routes.js.
+app.use(
+  createKnowledgeRouter({
+    requireActiveUser,
+    getTargetJob,
+  })
+);
+
 app.use(
   createInterviewRouter({
     requireActiveUser,
     repository: interviewRepository,
     aiService: interviewAiService,
     resumeContextService: interviewResumeContextService,
+    // Role & Company Knowledge Retrieval (Issue #16).
+    getTargetJob,
+    knowledgeService: interviewKnowledge,
   })
 );
 

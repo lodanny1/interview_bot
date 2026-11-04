@@ -1,8 +1,10 @@
 "use client";
 
 // Complete User Setup form (Issue #05). Collects what Interview Bot needs to
-// personalize practice: target role and focus areas (required), plus target
-// company and extra context (optional).
+// personalize practice. The "Target job" section has the same fields as the
+// Target Jobs page: job title (required), company and job description
+// (optional). With a description, it's saved as a target job and shows up on
+// the Target Jobs page. Then focus areas (required) and extra context.
 // The logic follows SignUpForm: validate in the browser, then the server
 // action validates again, saves, and redirects to the dashboard.
 
@@ -23,6 +25,7 @@ import {
   type FocusArea,
   type SetupFieldErrors,
 } from "@/lib/setup/setup-validation";
+import { countWords } from "@/lib/target-job/target-job-validation";
 import {
   INITIAL_SETUP_FORM_STATE,
   type SetupAction,
@@ -44,6 +47,7 @@ export function SetupForm({ action, initialValues }: SetupFormProps) {
   const [focusAreas, setFocusAreas] = useState<FocusArea[]>(initialValues.focusAreas);
   const [targetCompany, setTargetCompany] = useState(initialValues.targetCompany);
   const [bio, setBio] = useState(initialValues.bio);
+  const [jobDescription, setJobDescription] = useState(initialValues.jobDescription);
 
   // Errors from client-side checks, when the action is never called.
   const [clientErrors, setClientErrors] = useState<SetupFieldErrors>({});
@@ -72,6 +76,7 @@ export function SetupForm({ action, initialValues }: SetupFormProps) {
       focusAreas,
       targetCompany,
       bio,
+      jobDescription,
     });
     if (!validation.ok) {
       setClientErrors(validation.fieldErrors);
@@ -86,11 +91,14 @@ export function SetupForm({ action, initialValues }: SetupFormProps) {
     }
     formData.set("targetCompany", validation.data.targetCompany);
     formData.set("bio", validation.data.bio);
+    formData.set("jobDescription", validation.data.jobDescription);
     startTransition(() => formAction(formData));
   }
 
   // Show one error source at a time: current client errors, otherwise the last
   // server result. Hide stale server messages while a new attempt is pending.
+  const words = countWords(jobDescription);
+
   const hasClientErrors = Object.keys(clientErrors).length > 0;
   const fieldErrors = hasClientErrors ? clientErrors : pending ? {} : (state.fieldErrors ?? {});
   const formError = pending || hasClientErrors ? undefined : state.formError;
@@ -115,27 +123,89 @@ export function SetupForm({ action, initialValues }: SetupFormProps) {
         </div>
       )}
 
-      <Field id="targetRole" label="Target role" error={fieldErrors.targetRole}>
-        {(describedBy) => (
-          <input
-            id="targetRole"
-            name="targetRole"
-            type="text"
-            autoComplete="organization-title"
-            placeholder="e.g. Software Engineer, Product Manager"
-            maxLength={SETUP_LIMITS.targetRole}
-            required
-            value={targetRole}
-            onChange={(event) => setTargetRole(event.target.value)}
-            aria-invalid={fieldErrors.targetRole ? true : undefined}
-            aria-describedby={describedBy}
-            className={cn(
-              inputClass,
-              fieldErrors.targetRole ? "border-input-error" : "border-input-default"
-            )}
-          />
-        )}
-      </Field>
+      <fieldset className="flex flex-col gap-5 rounded-xl border border-line-subtle p-5">
+        <legend className="px-1 text-base font-semibold text-primary">Target job</legend>
+        <p className="-mt-2 text-sm text-tertiary">
+          The job you&apos;re preparing for. With a job description, it&apos;s saved to your
+          Target Jobs page, where you can add more jobs later.
+        </p>
+
+        <Field id="targetRole" label="Job title" error={fieldErrors.targetRole}>
+          {(describedBy) => (
+            <input
+              id="targetRole"
+              name="targetRole"
+              type="text"
+              autoComplete="organization-title"
+              placeholder="e.g. Junior Software Engineer"
+              maxLength={SETUP_LIMITS.targetRole}
+              required
+              value={targetRole}
+              onChange={(event) => setTargetRole(event.target.value)}
+              aria-invalid={fieldErrors.targetRole ? true : undefined}
+              aria-describedby={describedBy}
+              className={cn(
+                inputClass,
+                fieldErrors.targetRole ? "border-input-error" : "border-input-default"
+              )}
+            />
+          )}
+        </Field>
+
+        <Field
+          id="targetCompany"
+          label="Company"
+          optional
+          error={fieldErrors.targetCompany}
+        >
+          {(describedBy) => (
+            <input
+              id="targetCompany"
+              name="targetCompany"
+              type="text"
+              autoComplete="organization"
+              placeholder="e.g. Acme Corp"
+              maxLength={SETUP_LIMITS.targetCompany}
+              value={targetCompany}
+              onChange={(event) => setTargetCompany(event.target.value)}
+              aria-invalid={fieldErrors.targetCompany ? true : undefined}
+              aria-describedby={describedBy}
+              className={cn(
+                inputClass,
+                fieldErrors.targetCompany ? "border-input-error" : "border-input-default"
+              )}
+            />
+          )}
+        </Field>
+
+        <Field
+          id="jobDescription"
+          label="Job description"
+          optional
+          hint={`${words} ${words === 1 ? "word" : "words"} · ${jobDescription.length.toLocaleString("en-US")}/${SETUP_LIMITS.jobDescription.toLocaleString("en-US")}`}
+          help="Paste the job posting to save this job to your Target Jobs page."
+          error={fieldErrors.jobDescription}
+        >
+          {(describedBy) => (
+            <textarea
+              id="jobDescription"
+              name="jobDescription"
+              rows={6}
+              placeholder="Paste the job description here…"
+              maxLength={SETUP_LIMITS.jobDescription}
+              value={jobDescription}
+              onChange={(event) => setJobDescription(event.target.value)}
+              aria-invalid={fieldErrors.jobDescription ? true : undefined}
+              aria-describedby={describedBy}
+              className={cn(
+                inputClass,
+                "h-auto resize-y py-2.5 leading-6",
+                fieldErrors.jobDescription ? "border-input-error" : "border-input-default"
+              )}
+            />
+          )}
+        </Field>
+      </fieldset>
 
       <ChoiceGroup
         id="focusAreas"
@@ -155,32 +225,6 @@ export function SetupForm({ action, initialValues }: SetupFormProps) {
           />
         ))}
       </ChoiceGroup>
-
-      <Field
-        id="targetCompany"
-        label="Target company"
-        optional
-        error={fieldErrors.targetCompany}
-      >
-        {(describedBy) => (
-          <input
-            id="targetCompany"
-            name="targetCompany"
-            type="text"
-            autoComplete="organization"
-            placeholder="e.g. Google, a local startup"
-            maxLength={SETUP_LIMITS.targetCompany}
-            value={targetCompany}
-            onChange={(event) => setTargetCompany(event.target.value)}
-            aria-invalid={fieldErrors.targetCompany ? true : undefined}
-            aria-describedby={describedBy}
-            className={cn(
-              inputClass,
-              fieldErrors.targetCompany ? "border-input-error" : "border-input-default"
-            )}
-          />
-        )}
-      </Field>
 
       <Field
         id="bio"
@@ -226,6 +270,7 @@ function Field({
   label,
   optional,
   hint,
+  help,
   error,
   children,
 }: {
@@ -233,10 +278,13 @@ function Field({
   label: string;
   optional?: boolean;
   hint?: string;
+  help?: string;
   error?: string;
   children: (describedBy: string | undefined) => ReactNode;
 }) {
   const errorId = `${id}-error`;
+  const helpId = `${id}-help`;
+  const describedBy = [help ? helpId : null, error ? errorId : null].filter(Boolean).join(" ");
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-baseline justify-between gap-2">
@@ -246,7 +294,12 @@ function Field({
         </label>
         {hint && <span className="font-mono text-[11px] text-tertiary">{hint}</span>}
       </div>
-      {children(error ? errorId : undefined)}
+      {help && (
+        <p id={helpId} className="text-sm text-tertiary">
+          {help}
+        </p>
+      )}
+      {children(describedBy || undefined)}
       {error && (
         <p id={errorId} className="text-sm text-error-text">
           {error}

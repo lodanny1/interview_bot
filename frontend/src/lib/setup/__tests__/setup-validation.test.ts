@@ -21,6 +21,7 @@ describe("validateSetup", () => {
         focusAreas: ["BEHAVIORAL", "TECHNICAL"],
         targetCompany: "Acme",
         bio: "",
+        jobDescription: "",
       },
     });
   });
@@ -83,5 +84,34 @@ describe("saved profile parsing", () => {
       "TECHNICAL",
     ]);
     expect(parseFocusAreas(null)).toEqual([]);
+  });
+});
+
+describe("setup target job description", () => {
+  const DESCRIPTION =
+    "We are hiring a junior software engineer to build and maintain web features. " +
+    "You will work with React and Node.js, write tests, and review code with the team.";
+  const BASE = { targetRole: "Software Engineer", focusAreas: ["TECHNICAL"], targetCompany: "", bio: "" };
+
+  it("is optional", () => {
+    const result = validateSetup({ ...BASE, jobDescription: "   " });
+    expect(result.ok && result.data.jobDescription).toBe("");
+  });
+
+  it("accepts a full job description", () => {
+    const result = validateSetup({ ...BASE, jobDescription: `  ${DESCRIPTION} ` });
+    expect(result.ok && result.data.jobDescription).toBe(DESCRIPTION);
+  });
+
+  it("uses the Target Jobs page's rules when given", () => {
+    for (const [jobDescription, message] of [
+      ["https://jobs.example.com/1", /link/],
+      ["Too short to be a real posting.", /too short/],
+      ["x".repeat(10001), /10,000 characters/],
+    ] as const) {
+      const result = validateSetup({ ...BASE, jobDescription });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.fieldErrors.jobDescription).toMatch(message);
+    }
   });
 });

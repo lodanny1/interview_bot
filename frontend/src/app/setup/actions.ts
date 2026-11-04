@@ -21,6 +21,7 @@ export async function completeSetupAction(
     focusAreas: formData.getAll("focusAreas"),
     targetCompany: formData.get("targetCompany"),
     bio: formData.get("bio"),
+    jobDescription: formData.get("jobDescription"),
   });
   if (!validation.ok) {
     return { fieldErrors: validation.fieldErrors };

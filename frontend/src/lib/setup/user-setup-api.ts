@@ -1,6 +1,8 @@
 // Server-side calls to the backend for Complete User Setup (Issue #05).
 //   GET /me        -> load saved setup info and whether setup is complete
-//   PUT /me/setup  -> save setup info
+//   PUT /me/setup  -> save setup info (and the target job, when a job
+//                     description is given)
+//   GET /me/target-jobs -> find the target job saved from setup
 import "server-only";
 
 import type { SetupFieldErrors, SetupInput } from "./setup-validation";
@@ -119,5 +121,39 @@ export async function saveUserSetup(
     // Network failure or the backend is down (Scenario 4).
     console.error("Saving user setup failed:", error);
     return { ok: false, reason: "unavailable" };
+  }
+}
+
+// The description of the saved target job that matches the setup's role and
+// company (title and company compared without case or extra spaces), so a
+// returning user sees the job description they entered during setup. Returns
+// "" when there's no match or the jobs can't be loaded.
+export async function loadSetupJobDescription(
+  idToken: string,
+  { jobTitle, company }: { jobTitle: string; company: string }
+): Promise<string> {
+  const base = backendUrl();
+  if (!base || !jobTitle.trim()) return "";
+
+  try {
+    const response = await fetch(`${base}/me/target-jobs`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${idToken}` },
+      cache: "no-store",
+    });
+    if (!response.ok) return "";
+
+    const data = (await response.json()) as {
+      targetJobs?: { job_title?: string; company?: string | null; description?: string }[];
+    };
+    const same = (a: string | null | undefined, b: string) =>
+      (a ?? "").trim().toLowerCase() === b.trim().toLowerCase();
+    const match = (data.targetJobs ?? []).find(
+      (job) => same(job.job_title, jobTitle) && same(job.company, company)
+    );
+    return typeof match?.description === "string" ? match.description : "";
+  } catch (error) {
+    console.error("Loading setup target job failed:", error);
+    return "";
   }
 }

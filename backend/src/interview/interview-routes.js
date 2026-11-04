@@ -83,9 +83,10 @@ function createInterviewRouter({
         ? body.jobDescription.trim()
         : "";
 
-    if (jobDescription.length > 5000) {
+    // Long text boxes share one 10,000-character limit across the app.
+    if (jobDescription.length > 10000) {
       fieldErrors.jobDescription =
-        "Keep the job description under 5000 characters.";
+        "Keep the job description under 10,000 characters.";
     }
 
     if (Object.keys(fieldErrors).length > 0) {

@@ -6,7 +6,11 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/session-cookie-name";
 import { TargetJobWorkspace } from "@/components/target-job/TargetJobWorkspace";
-import { isMockMode, loadTargetJob } from "@/lib/target-job/target-job-api";
+import {
+  isMockMode,
+  loadTargetJob,
+  loadTargetJobDefaults,
+} from "@/lib/target-job/target-job-api";
 import { TARGET_JOB_ERROR_MESSAGES } from "@/lib/target-job/target-job-form-state";
 import { removeTargetJobAction, saveTargetJobAction } from "./actions";
 
@@ -26,6 +30,10 @@ export default async function TargetJobPage() {
     redirect("/login");
   }
 
+  // No saved target job yet: fill the form from Complete User Setup.
+  const defaults =
+    loaded.ok && loaded.targetJob ? null : await loadTargetJobDefaults(idToken ?? "mock-token");
+
   return (
     <div className="w-full max-w-3xl p-10">
       <header className="mb-8">
@@ -40,6 +48,7 @@ export default async function TargetJobPage() {
         saveAction={saveTargetJobAction}
         removeAction={removeTargetJobAction}
         initialTargetJob={loaded.ok ? loaded.targetJob : null}
+        defaults={defaults}
         loadError={loaded.ok ? undefined : TARGET_JOB_ERROR_MESSAGES.loadUnavailable}
       />
     </div>

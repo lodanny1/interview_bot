@@ -1,5 +1,5 @@
 // Shared contract between the Complete User Setup form and its server action.
-import type { ExperienceLevel, FocusArea, SetupFieldErrors } from "./setup-validation";
+import type { FocusArea, SetupFieldErrors } from "./setup-validation";
 import { POST_LOGIN_REDIRECT } from "@/lib/auth/login-form-state";
 
 export interface SetupFormState {
@@ -19,7 +19,6 @@ export const INITIAL_SETUP_FORM_STATE: SetupFormState = {};
 // Values the form starts with: empty for a new user, the saved profile otherwise.
 export interface SetupInitialValues {
   targetRole: string;
-  experienceLevel: ExperienceLevel | "";
   focusAreas: FocusArea[];
   targetCompany: string;
   bio: string;
@@ -27,7 +26,6 @@ export interface SetupInitialValues {
 
 export const EMPTY_SETUP_VALUES: SetupInitialValues = {
   targetRole: "",
-  experienceLevel: "",
   focusAreas: [],
   targetCompany: "",
   bio: "",

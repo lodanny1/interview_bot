@@ -18,7 +18,6 @@ export async function completeSetupAction(
   // Validate again on the server; the client check can be bypassed (Scenario 2).
   const validation = validateSetup({
     targetRole: formData.get("targetRole"),
-    experienceLevel: formData.get("experienceLevel"),
     focusAreas: formData.getAll("focusAreas"),
     targetCompany: formData.get("targetCompany"),
     bio: formData.get("bio"),

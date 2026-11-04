@@ -23,6 +23,7 @@ import {
 import type {
   TargetJob,
   TargetJobAction,
+  TargetJobDefaults,
   TargetJobFormState,
 } from "@/lib/target-job/target-job-form-state";
 
@@ -30,6 +31,8 @@ interface TargetJobFormProps {
   saveAction: TargetJobAction;
   removeAction: TargetJobAction;
   initialTargetJob: TargetJob | null;
+  // Target role and company from Complete User Setup, used when nothing is saved.
+  defaults?: TargetJobDefaults | null;
   // Shown when the saved job couldn't be loaded; the form still works.
   loadError?: string;
   // Called after a successful save (with the saved job) or removal (null).
@@ -54,13 +57,19 @@ export function TargetJobForm({
   saveAction,
   removeAction,
   initialTargetJob,
+  defaults,
   loadError,
   onTargetJobChange,
 }: TargetJobFormProps) {
   const [editing, setEditing] = useState(initialTargetJob === null);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
-  const [jobTitle, setJobTitle] = useState(initialTargetJob?.jobTitle ?? "");
-  const [company, setCompany] = useState(initialTargetJob?.company ?? "");
+  // A saved job always wins; otherwise start from the setup info, if any.
+  const [jobTitle, setJobTitle] = useState(
+    initialTargetJob ? initialTargetJob.jobTitle : (defaults?.jobTitle ?? "")
+  );
+  const [company, setCompany] = useState(
+    initialTargetJob ? (initialTargetJob.company ?? "") : (defaults?.company ?? "")
+  );
   const [description, setDescription] = useState(initialTargetJob?.description ?? "");
   const [clientErrors, setClientErrors] = useState<TargetJobFieldErrors>({});
 
@@ -71,12 +80,12 @@ export function TargetJobForm({
       const nextState = (await action(prevState, formData)) ?? prevState;
 
       if (nextState.targetJob !== undefined) {
-        // Saved or removed: show the saved card, or an empty form.
+        // Saved or removed: show the saved card, or a fresh form.
         setEditing(nextState.targetJob === null);
         setConfirmingRemove(false);
         if (nextState.targetJob === null) {
-          setJobTitle("");
-          setCompany("");
+          setJobTitle(defaults?.jobTitle ?? "");
+          setCompany(defaults?.company ?? "");
           setDescription("");
         }
         onTargetJobChange?.(nextState.targetJob);
@@ -136,6 +145,9 @@ export function TargetJobForm({
   const formError = pending || hasClientErrors ? undefined : state.formError;
   const notice = pending || formError ? undefined : state.notice;
   const showLoadError = loadError && state.targetJob === undefined && !formError;
+
+  // Tell the user where the pre-filled title and company came from.
+  const showDefaultsNote = editing && !savedJob && Boolean(defaults);
 
   const words = countWords(description);
   const chars = description.length;
@@ -253,6 +265,13 @@ export function TargetJobForm({
           aria-label="Target job form"
           className="flex flex-col gap-6 rounded-2xl border border-line-subtle bg-card p-6 shadow-sm"
         >
+          {showDefaultsNote && (
+            <p className="text-sm text-tertiary">
+              We filled in your target role and company from your profile setup. Change them if
+              this job is different.
+            </p>
+          )}
+
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <Field id="jobTitle" label="Job title" error={fieldErrors.jobTitle}>
               {(describedBy) => (
@@ -302,7 +321,7 @@ export function TargetJobForm({
           <Field
             id="description"
             label="Job description"
-            hint={`${words} ${words === 1 ? "word" : "words"} ·${chars.toLocaleString("en-US")}/${TARGET_JOB_LIMITS.descriptionMaxChars.toLocaleString("en-US")}`}
+            hint={`${words} ${words === 1 ? "word" : "words"} · ${chars.toLocaleString("en-US")}/${TARGET_JOB_LIMITS.descriptionMaxChars.toLocaleString("en-US")}`}
             help="Paste the full posting text, including responsibilities and qualifications."
             error={fieldErrors.description}
           >

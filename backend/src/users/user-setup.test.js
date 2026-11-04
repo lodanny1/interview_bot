@@ -5,7 +5,6 @@ const { validateUserSetup, isSetupComplete } = require("./user-setup");
 
 const VALID = {
   targetRole: "  Software Engineer ",
-  experienceLevel: "ENTRY",
   focusAreas: ["BEHAVIORAL", "TECHNICAL", "BEHAVIORAL"],
   targetCompany: "",
   bio: " Career switcher ",
@@ -18,7 +17,6 @@ describe("validateUserSetup", () => {
     assert.equal(result.ok, true);
     assert.deepEqual(result.data, {
       targetRole: "Software Engineer",
-      experienceLevel: "ENTRY",
       focusAreas: "BEHAVIORAL,TECHNICAL",
       targetCompany: null,
       bio: "Career switcher",
@@ -29,25 +27,30 @@ describe("validateUserSetup", () => {
     const result = validateUserSetup({});
 
     assert.equal(result.ok, false);
-    assert.deepEqual(Object.keys(result.fieldErrors).sort(), [
-      "experienceLevel",
-      "focusAreas",
-      "targetRole",
-    ]);
+    assert.deepEqual(Object.keys(result.fieldErrors).sort(), ["focusAreas", "targetRole"]);
   });
 
-  it("rejects unknown options and over-long text", () => {
+  it("no longer asks for an experience level", () => {
+    const result = validateUserSetup({ ...VALID, experienceLevel: "WIZARD" });
+
+    assert.equal(result.ok, true);
+    assert.equal("experienceLevel" in result.data, false);
+  });
+
+  it("rejects unknown focus areas and over-long text", () => {
     const result = validateUserSetup({
       ...VALID,
-      experienceLevel: "WIZARD",
       focusAreas: ["TECHNICAL", "JUGGLING"],
-      bio: "x".repeat(501),
+      bio: "x".repeat(10001),
     });
 
     assert.equal(result.ok, false);
-    assert.ok(result.fieldErrors.experienceLevel);
     assert.ok(result.fieldErrors.focusAreas);
-    assert.ok(result.fieldErrors.bio);
+    assert.match(result.fieldErrors.bio, /10,000 characters/);
+  });
+
+  it("allows a bio up to 10,000 characters", () => {
+    assert.equal(validateUserSetup({ ...VALID, bio: "x".repeat(10000) }).ok, true);
   });
 
   it("handles a missing body", () => {
@@ -56,15 +59,18 @@ describe("validateUserSetup", () => {
 });
 
 describe("isSetupComplete", () => {
-  it("needs every required field", () => {
+  it("needs a target role and focus areas", () => {
     assert.equal(isSetupComplete(null), false);
     assert.equal(isSetupComplete({ target_role: "SWE" }), false);
     assert.equal(
-      isSetupComplete({
-        target_role: "SWE",
-        experience_level: "ENTRY",
-        focus_areas: "TECHNICAL",
-      }),
+      isSetupComplete({ target_role: "SWE", focus_areas: "TECHNICAL" }),
+      true
+    );
+  });
+
+  it("doesn't need an experience level", () => {
+    assert.equal(
+      isSetupComplete({ target_role: "SWE", focus_areas: "TECHNICAL", experience_level: null }),
       true
     );
   });

@@ -190,7 +190,7 @@ app.get("/me", async (req, res) => {
 });
 
 // Complete User Setup (Issue #05). Saves the personalization fields from the
-// setup page. Required: targetRole, experienceLevel, focusAreas.
+// setup page. Required: targetRole, focusAreas.
 app.put("/me/setup", async (req, res) => {
   let user;
 
@@ -235,8 +235,13 @@ app.put("/me/setup", async (req, res) => {
   }
 
   try {
+    // The setup page no longer asks for experience level, so keep any value
+    // already saved instead of clearing it.
+    const existingProfile = await getUserProfile(user.id);
+
     const profile = await upsertUserProfile({
       userId: user.id,
+      experienceLevel: existingProfile?.experience_level ?? null,
       ...validation.data,
     });
 

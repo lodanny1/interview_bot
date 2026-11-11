@@ -15,6 +15,7 @@ import {
   User,
 } from "lucide-react";
 
+import { FeedbackReportPanel } from "@/components/feedback/FeedbackReportPanel";
 import { cn } from "@/lib/utils";
 
 import type {
@@ -265,22 +266,10 @@ export default function InterviewHistoryDetailPage() {
             </dl>
           </div>
 
-          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-5">
-            <h2 className="font-semibold text-gray-900">
-              Interview Analysis
-            </h2>
-
-            <p className="mt-2 text-sm leading-relaxed text-gray-500">
-              Performance analysis, scoring,
-              strengths, improvement areas,
-              and question-level feedback
-              will appear here.
-            </p>
-
-            <span className="mt-4 inline-flex rounded-full bg-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600">
-              Coming soon
-            </span>
-          </div>
+          <FeedbackReportPanel
+            sessionId={session.id}
+            sessionStatus={session.status}
+          />
         </aside>
       </div>
     </div>

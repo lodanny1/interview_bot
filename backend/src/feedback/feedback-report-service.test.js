@@ -51,6 +51,24 @@ function goodAiReport(overrides = {}) {
         questionNumbers: [2],
       },
     ],
+    questions: [
+      {
+        questionNumber: 1,
+        sufficientEvidence: true,
+        score: 82,
+        feedback: "A strong answer with a clear result.",
+        strength: "You gave a number for your impact.",
+        improvement: "Say what your specific role was.",
+      },
+      {
+        questionNumber: 2,
+        sufficientEvidence: true,
+        score: 68,
+        feedback: "You resolved it, but the reasoning was thin.",
+        strength: "You used data to settle it.",
+        improvement: "Explain why you chose mockups.",
+      },
+    ],
     ...overrides,
   };
 }

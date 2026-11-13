@@ -4,11 +4,16 @@
 // Loads the saved report; if none exists yet, asks the backend to generate it
 // once, then shows it. The report is saved on the backend, so coming back to
 // the page shows the same report without generating it again.
+//
+// Per Question Feedback (Issue #31) comes in the same report. The page shows
+// it next to the transcript, so this panel hands it up via onQuestionFeedback,
+// and the Q1/Q2 tags here link to each question's feedback.
 
 import { useEffect, useState } from "react";
 import { CheckCircle2, Lightbulb, Loader2, RefreshCw, TriangleAlert } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { questionFeedbackId, scoreColor, scoreLabel } from "@/lib/feedback/feedback-score";
 import {
   FEEDBACK_API_URL,
   FEEDBACK_MESSAGES,
@@ -16,6 +21,7 @@ import {
   unavailableMessage,
   type FeedbackReport,
   type InterviewFeedback,
+  type QuestionFeedback,
 } from "@/lib/feedback/feedback-state";
 
 type SessionStatus = "ACTIVE" | "COMPLETED" | "ABANDONED";
@@ -25,6 +31,9 @@ interface FeedbackReportPanelProps {
   sessionStatus: SessionStatus;
   // For tests; how long to wait between checks while another request generates.
   pollIntervalMs?: number;
+  // Called with the per-question feedback once a report is ready (Issue #31),
+  // and with [] whenever there isn't one.
+  onQuestionFeedback?: (questions: QuestionFeedback[]) => void;
 }
 
 type PanelState =
@@ -62,11 +71,21 @@ export function FeedbackReportPanel({
   sessionId,
   sessionStatus,
   pollIntervalMs = 3000,
+  onQuestionFeedback,
 }: FeedbackReportPanelProps) {
   const [state, setState] = useState<PanelState>({ phase: "loading" });
   const [request, setRequest] = useState<Request>({ attempt: 0, generate: false });
 
   const isActive = sessionStatus === "ACTIVE";
+
+  const readyQuestions =
+    state.phase === "loaded" && state.feedback.status === "ready" && state.feedback.report
+      ? state.feedback.report.questions
+      : null;
+
+  useEffect(() => {
+    onQuestionFeedback?.(readyQuestions ?? []);
+  }, [readyQuestions, onQuestionFeedback]);
 
   useEffect(() => {
     if (isActive) return;
@@ -222,25 +241,6 @@ function Notice({ message, onRetry }: { message: string; onRetry: () => void }) 
   );
 }
 
-function scoreLabel(score: number) {
-  if (score >= 80) return "Strong";
-  if (score >= 60) return "Solid";
-  if (score >= 40) return "Developing";
-  return "Needs work";
-}
-
-function scoreColor(score: number) {
-  if (score >= 80) return "bg-emerald-500";
-  if (score >= 60) return "bg-sky-500";
-  if (score >= 40) return "bg-amber-500";
-  return "bg-rose-500";
-}
-
-function questionLabel(numbers: number[]) {
-  if (numbers.length === 0) return null;
-  return numbers.map((n) => `Q${n}`).join(", ");
-}
-
 function formatDate(value: string | null) {
   if (!value) return null;
   const date = new Date(value);
@@ -251,6 +251,8 @@ function formatDate(value: string | null) {
 
 function Report({ report, generatedAt }: { report: FeedbackReport; generatedAt: string | null }) {
   const generated = formatDate(generatedAt);
+  // Only link Q tags to questions that have a card on the page.
+  const linkable = new Set(report.questions.map((q) => q.number));
 
   return (
     <div className="mt-4 space-y-6">
@@ -307,7 +309,7 @@ function Report({ report, generatedAt }: { report: FeedbackReport; generatedAt: 
                 <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
                 <span>
                   {item.point}
-                  <QuestionRefs numbers={item.questionNumbers} />
+                  <QuestionRefs numbers={item.questionNumbers} linkable={linkable} />
                 </span>
               </li>
             ))}
@@ -326,7 +328,7 @@ function Report({ report, generatedAt }: { report: FeedbackReport; generatedAt: 
                 <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
                 <span>
                   {item.point}
-                  <QuestionRefs numbers={item.questionNumbers} />
+                  <QuestionRefs numbers={item.questionNumbers} linkable={linkable} />
                   {item.suggestion && (
                     <span className="mt-1 block text-xs leading-relaxed text-gray-500">
                       Try: {item.suggestion}
@@ -348,13 +350,30 @@ function Report({ report, generatedAt }: { report: FeedbackReport; generatedAt: 
   );
 }
 
-function QuestionRefs({ numbers }: { numbers: number[] }) {
-  const label = questionLabel(numbers);
-  if (!label) return null;
+function QuestionRefs({ numbers, linkable }: { numbers: number[]; linkable: Set<number> }) {
+  if (numbers.length === 0) return null;
 
   return (
-    <span className="ml-1.5 rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-500">
-      {label}
+    <span className="ml-1.5 inline-flex flex-wrap gap-1 align-middle">
+      {numbers.map((n) =>
+        linkable.has(n) ? (
+          <a
+            key={n}
+            href={`#${questionFeedbackId(n)}`}
+            className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600 hover:bg-gray-200 hover:text-gray-900"
+            aria-label={`See feedback for question ${n}`}
+          >
+            Q{n}
+          </a>
+        ) : (
+          <span
+            key={n}
+            className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-500"
+          >
+            Q{n}
+          </span>
+        )
+      )}
     </span>
   );
 }

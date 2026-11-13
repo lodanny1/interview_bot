@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 
 import { FeedbackReportPanel } from "@/components/feedback/FeedbackReportPanel";
+import { QuestionFeedbackList } from "@/components/feedback/QuestionFeedbackList";
+import type { QuestionFeedback } from "@/lib/feedback/feedback-state";
 import { cn } from "@/lib/utils";
 
 import type {
@@ -46,6 +48,10 @@ export default function InterviewHistoryDetailPage() {
         ? null
         : "Interview session id is missing."
     );
+
+  // Per Question Feedback (Issue #31); filled in by the feedback panel.
+  const [questionFeedback, setQuestionFeedback] =
+    useState<QuestionFeedback[]>([]);
 
   useEffect(() => {
     if (!sessionId) {
@@ -187,35 +193,39 @@ export default function InterviewHistoryDetailPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-        <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-          <div className="border-b border-gray-200 px-6 py-4">
-            <h2 className="font-semibold text-gray-900">
-              Interview Transcript
-            </h2>
+        <div className="space-y-6">
+          <QuestionFeedbackList questions={questionFeedback} />
 
-            <p className="mt-1 text-sm text-gray-500">
-              Full conversation from this practice session.
-            </p>
-          </div>
+          <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <div className="border-b border-gray-200 px-6 py-4">
+              <h2 className="font-semibold text-gray-900">
+                Interview Transcript
+              </h2>
 
-          <div className="space-y-6 p-6">
-            {session.messages.length ===
-            0 ? (
-              <p className="text-sm text-gray-500">
-                No messages were saved for this interview.
+              <p className="mt-1 text-sm text-gray-500">
+                Full conversation from this practice session.
               </p>
-            ) : (
-              session.messages.map(
-                (message) => (
-                  <TranscriptMessage
-                    key={message.id}
-                    message={message}
-                  />
+            </div>
+
+            <div className="space-y-6 p-6">
+              {session.messages.length ===
+              0 ? (
+                <p className="text-sm text-gray-500">
+                  No messages were saved for this interview.
+                </p>
+              ) : (
+                session.messages.map(
+                  (message) => (
+                    <TranscriptMessage
+                      key={message.id}
+                      message={message}
+                    />
+                  )
                 )
-              )
-            )}
-          </div>
-        </section>
+              )}
+            </div>
+          </section>
+        </div>
 
         <aside className="space-y-6">
           <div className="rounded-xl border border-gray-200 bg-white p-5">
@@ -269,6 +279,7 @@ export default function InterviewHistoryDetailPage() {
           <FeedbackReportPanel
             sessionId={session.id}
             sessionStatus={session.status}
+            onQuestionFeedback={setQuestionFeedback}
           />
         </aside>
       </div>

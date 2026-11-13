@@ -1,4 +1,5 @@
-// Generate Feedback Report (Issue #30). Shared contract for the post-interview
+// Generate Feedback Report (Issue #30) and Per Question Feedback (Issue #31).
+// Shared contract for the post-interview
 // feedback report. Backend routes: GET/POST /interviews/:id/feedback
 // (backend/src/feedback/feedback-report-routes.js). The app proxies them at
 // /api/interview/feedback. Safe to import from client and server code.
@@ -29,12 +30,34 @@ export interface FeedbackImprovement extends FeedbackPoint {
   suggestion: string;
 }
 
+// Why a question has no feedback (Issue #31).
+//   too_short     the answer was too short to judge fairly
+//   not_reviewed  the AI didn't return feedback for it
+export type QuestionFeedbackReason = "too_short" | "not_reviewed";
+
+// Feedback on one answered question (Issue #31). question and answer are the
+// user's own transcript text.
+export interface QuestionFeedback {
+  number: number;
+  question: string;
+  answer: string;
+  feedbackAvailable: boolean;
+  reason: QuestionFeedbackReason | null;
+  // null when feedbackAvailable is false; no score is made up.
+  score: number | null;
+  feedback: string;
+  strength: string;
+  improvement: string;
+}
+
 export interface FeedbackReport {
   overallScore: number;
   summary: string;
   categories: FeedbackCategory[];
   strengths: FeedbackPoint[];
   improvements: FeedbackImprovement[];
+  // Empty for reports made before per-question feedback existed.
+  questions: QuestionFeedback[];
   questionsAnswered: number;
 }
 
@@ -60,6 +83,11 @@ export const FEEDBACK_MESSAGES = {
   notCompleted: "Your feedback report will be generated after you finish this interview.",
   loadError: "We couldn't load your feedback report.",
 } as const;
+
+export const QUESTION_FEEDBACK_MESSAGES: Record<QuestionFeedbackReason, string> = {
+  too_short: "This answer was too short to give fair feedback, so it wasn't scored.",
+  not_reviewed: "Feedback isn't available for this question.",
+};
 
 export function unavailableMessage(reason: string | null): string {
   if (reason === "no_answers" || reason === "not_enough_detail" || reason === "insufficient_evidence") {
@@ -112,6 +140,48 @@ function parseCategory(raw: unknown): FeedbackCategory | null {
   };
 }
 
+function text(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function parseQuestionFeedback(raw: unknown): QuestionFeedback | null {
+  if (!isRecord(raw)) return null;
+  if (typeof raw.number !== "number" || !Number.isInteger(raw.number) || raw.number < 1) {
+    return null;
+  }
+
+  const base = {
+    number: raw.number,
+    question: text(raw.question),
+    answer: text(raw.answer),
+  };
+
+  const feedback = text(raw.feedback).trim();
+
+  // Only show a score when the backend says the feedback is real and it's valid.
+  if (raw.feedbackAvailable === true && isScore(raw.score) && feedback) {
+    return {
+      ...base,
+      feedbackAvailable: true,
+      reason: null,
+      score: raw.score,
+      feedback,
+      strength: text(raw.strength),
+      improvement: text(raw.improvement),
+    };
+  }
+
+  return {
+    ...base,
+    feedbackAvailable: false,
+    reason: raw.reason === "too_short" ? "too_short" : "not_reviewed",
+    score: null,
+    feedback: "",
+    strength: "",
+    improvement: "",
+  };
+}
+
 function compact<T>(items: unknown, parse: (raw: unknown) => T | null): T[] {
   return Array.isArray(items) ? items.map(parse).filter((item): item is T => item !== null) : [];
 }
@@ -127,6 +197,7 @@ export function parseFeedbackReport(raw: unknown): FeedbackReport | null {
     categories: compact(raw.categories, parseCategory),
     strengths: compact(raw.strengths, parsePoint),
     improvements: compact(raw.improvements, parseImprovement),
+    questions: compact(raw.questions, parseQuestionFeedback).sort((a, b) => a.number - b.number),
     questionsAnswered:
       typeof raw.questionsAnswered === "number" && raw.questionsAnswered >= 0
         ? raw.questionsAnswered

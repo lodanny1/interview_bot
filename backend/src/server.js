@@ -44,6 +44,9 @@ const interviewRepository = require("./interview/interview-repository");
 const interviewAiService = require("./interview/interview-ai-service");
 const interviewResumeContextService = require("./interview/resume-context-service");
 const interviewKnowledge = require("./interview/interview-knowledge");
+const { createFeedbackReportRouter } = require("./feedback/feedback-report-routes");
+const feedbackReportRepository = require("./feedback/feedback-report-repository");
+const { createFeedbackReportService } = require("./feedback/feedback-report-service");
 
 const app = express();
 app.disable("x-powered-by");
@@ -506,6 +509,16 @@ app.use(
     getTargetJob,
     getTargetJobById,
     knowledgeService: interviewKnowledge,
+  })
+);
+
+// Generate Feedback Report (Issue #30).
+app.use(
+  createFeedbackReportRouter({
+    requireActiveUser,
+    interviewRepository,
+    feedbackRepository: feedbackReportRepository,
+    feedbackService: createFeedbackReportService(),
   })
 );
 

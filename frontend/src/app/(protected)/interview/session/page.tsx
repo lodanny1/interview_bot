@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 
-import { Bot, MessageSquare, Mic, User, PhoneOff, Send } from "lucide-react";
+import { BarChart3, Bot, MessageSquare, Mic, User, PhoneOff, Send } from "lucide-react";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 import { cn } from "@/lib/utils";
@@ -413,6 +414,16 @@ function InterviewSessionContent() {
           >
             {interviewEnded ? "Interview complete" : formattedTime}
           </div>
+
+          {interviewEnded && (
+            <Link
+              href={`/interviews/${encodeURIComponent(session.id)}`}
+              className="inline-flex h-10 items-center gap-2 rounded-full bg-cta px-5 text-sm font-semibold text-white transition-colors hover:bg-cta-hover"
+            >
+              <BarChart3 className="size-4" />
+              View feedback report
+            </Link>
+          )}
 
           {!interviewEnded && (
             <button

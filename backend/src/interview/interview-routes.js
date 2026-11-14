@@ -28,6 +28,8 @@ function createInterviewRouter({
       mode: session.mode,
       status: session.status,
       startedAt: session.started_at,
+      pausedAt: session.paused_at,
+      remainingSeconds: session.remaining_seconds,
       endsAt: session.ends_at,
       durationMinutes: session.duration_minutes,
       completionReason: session.completion_reason,
@@ -517,6 +519,88 @@ function createInterviewRouter({
       }
     }
   );
+
+  router.post("/interviews/:id/pause", async (req, res) => {
+    const auth = await requireActiveUser(req);
+
+  if (!auth.ok) {
+    return res.status(auth.status).json({ error: auth.error });
+  }
+
+  try {
+    const current = await repository.getInterviewSession(
+      auth.user.id,
+      req.params.id,
+    );
+
+    if (!current) {
+      return res.status(404).json({ error: "Interview session not found" });
+    }
+
+    if (current.status === "PAUSED") {
+      return res.status(200).json({ session: toSessionResponse(current) });
+    }
+
+    if (current.status !== "ACTIVE") {
+      return res.status(409).json({ error: "Interview session is not active" });
+    }
+
+    const paused = await repository.pauseInterviewSession({
+      userId: auth.user.id,
+      sessionId: req.params.id,
+    });
+
+    if (!paused) {
+      return res.status(409).json({ error: "Interview session could not be paused" });
+    }
+
+    return res.status(200).json({ session: toSessionResponse(paused) });
+  } catch (error) {
+    logger.error("POST /interviews/:id/pause failed:", error);
+    return res.status(500).json({ error: "Unable to pause interview session" });
+  }
+});
+
+router.post("/interviews/:id/resume", async (req, res) => {
+  const auth = await requireActiveUser(req);
+
+  if (!auth.ok) {
+    return res.status(auth.status).json({ error: auth.error });
+  }
+
+  try {
+    const current = await repository.getInterviewSession(
+      auth.user.id,
+      req.params.id,
+    );
+
+    if (!current) {
+      return res.status(404).json({ error: "Interview session not found" });
+    }
+
+    if (current.status === "ACTIVE") {
+      return res.status(200).json({ session: toSessionResponse(current) });
+    }
+
+    if (current.status !== "PAUSED") {
+      return res.status(409).json({ error: "Interview session is not paused" });
+    }
+
+    const resumed = await repository.resumeInterviewSession({
+      userId: auth.user.id,
+      sessionId: req.params.id,
+    });
+
+    if (!resumed) {
+      return res.status(409).json({ error: "Interview session could not be resumed" });
+    }
+
+    return res.status(200).json({ session: toSessionResponse(resumed) });
+  } catch (error) {
+    logger.error("POST /interviews/:id/resume failed:", error);
+    return res.status(500).json({ error: "Unable to resume interview session" });
+  }
+});
 
   router.post(
     "/interviews/:id/complete",

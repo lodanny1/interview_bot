@@ -13,9 +13,15 @@ const SESSION_COLUMNS = `
   experience_level,
   job_description,
   status,
+  started_at,
+  ends_at,
+  duration_minutes,
+  paused_at,
+  remaining_seconds,
   created_at,
   updated_at,
   completed_at,
+  completion_reason,
   prompt_input
 `;
 
@@ -209,6 +215,72 @@ async function getInterviewMessages(sessionId) {
   }
 }
 
+async function pauseInterviewSession({ userId, sessionId }) {
+  if (!userId || !sessionId) {
+    throw new Error("userId and sessionId are required");
+  }
+
+  const pool = await createPool();
+
+  try {
+    const result = await pool.query(
+      `
+        UPDATE interview_sessions
+        SET
+          status = 'PAUSED',
+          paused_at = CURRENT_TIMESTAMP,
+          remaining_seconds = GREATEST(
+            0,
+            CEIL(EXTRACT(EPOCH FROM (ends_at - CURRENT_TIMESTAMP)))
+          )::INTEGER,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+          AND user_id = $2
+          AND status = 'ACTIVE'
+        RETURNING *
+      `,
+      [sessionId, userId]
+    );
+
+    return result.rows[0] || null;
+  } finally {
+    await pool.end();
+  }
+}
+
+async function resumeInterviewSession({ userId, sessionId }) {
+  if (!userId || !sessionId) {
+    throw new Error("userId and sessionId are required");
+  }
+
+  const pool = await createPool();
+
+  try {
+    const result = await pool.query(
+      `
+        UPDATE interview_sessions
+        SET
+          status = 'ACTIVE',
+          ends_at = CURRENT_TIMESTAMP
+            + (remaining_seconds * INTERVAL '1 second'),
+          paused_at = NULL,
+          remaining_seconds = NULL,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+          AND user_id = $2
+          AND status = 'PAUSED'
+          AND remaining_seconds IS NOT NULL
+        RETURNING *
+      `,
+      [sessionId, userId]
+    );
+
+    return result.rows[0] || null;
+  } finally {
+    await pool.end();
+  }
+}
+
 module.exports = {
   createInterviewSession,
   getInterviewSession,
@@ -217,6 +289,8 @@ module.exports = {
   completeInterviewSession,
   getInterviewTimeState,
   listInterviewSessions,
+  pauseInterviewSession,
+  resumeInterviewSession,
 };
 
 async function completeInterviewSession({

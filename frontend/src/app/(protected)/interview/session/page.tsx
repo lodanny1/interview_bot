@@ -48,13 +48,15 @@ function InterviewSessionContent() {
 
   const [loading, setLoading] = useState(Boolean(sessionId));
 
+  const [pausePending, setPausePending] = useState(false);
+
   const [error, setError] = useState<string | null>(
     sessionId ? null : "Interview session id is missing.",
   );
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const sessionStatusRef = useRef<"ACTIVE" | "COMPLETED" | "ABANDONED">(
+  const sessionStatusRef = useRef<"ACTIVE" | "COMPLETED" | "PAUSED"| "ABANDONED">(
     "ACTIVE",
   );
 
@@ -105,12 +107,16 @@ function InterviewSessionContent() {
         setMode(loadedSession.mode);
         setMessages(loadedSession.messages);
 
-        const remainingSeconds = Math.max(
-          0,
-          Math.ceil(
-            (new Date(loadedSession.endsAt).getTime() - Date.now()) / 1000,
-          ),
-        );
+        const remainingSeconds =
+          loadedSession.status === "PAUSED" &&
+          loadedSession.remainingSeconds !== null
+            ? loadedSession.remainingSeconds
+            : Math.max(
+                0,
+                Math.ceil(
+                  (new Date(loadedSession.endsAt).getTime() - Date.now()) / 1000,
+                ),
+              );
 
         setTimeRemaining(remainingSeconds);
       } catch (loadError) {
@@ -144,36 +150,28 @@ function InterviewSessionContent() {
   }, [session]);
 
   useEffect(() => {
-    if (!sessionId) {
-      return;
-    }
+  if (!sessionId) return;
 
-    const abandonInterview = () => {
-      if (sessionStatusRef.current !== "ACTIVE") {
-        return;
-      }
+  const pauseOnPageHide = () => {
+    if (sessionStatusRef.current !== "ACTIVE") return;
 
-      const payload = JSON.stringify({
-        sessionId,
-        reason: "ABANDONED",
-      });
+    const payload = JSON.stringify({
+      sessionId,
+      action: "pause",
+    });
 
-      navigator.sendBeacon(
-        "/api/interview/session/complete",
-        new Blob([payload], {
-          type: "application/json",
-        }),
-      );
+    navigator.sendBeacon(
+      "/api/interview/session/pause",
+      new Blob([payload], { type: "application/json" }),
+    );
+  };
 
-      sessionStatusRef.current = "ABANDONED";
-    };
+  window.addEventListener("pagehide", pauseOnPageHide);
 
-    window.addEventListener("pagehide", abandonInterview);
-
-    return () => {
-      window.removeEventListener("pagehide", abandonInterview);
-    };
-  }, [sessionId]);
+  return () => {
+    window.removeEventListener("pagehide", pauseOnPageHide);
+  };
+}, [sessionId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
@@ -206,7 +204,7 @@ function InterviewSessionContent() {
       const body = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(body?.error || "Unable to submit interview response.");
+        throw new Error("Unable to submit your response. Please try again.");
       }
 
       const newMessages = (body?.messages || []).map(
@@ -326,6 +324,81 @@ function InterviewSessionContent() {
     [sessionId, session, ending],
   );
 
+  const updatePauseState = async (action: "pause" | "resume") => {
+    if (!sessionId || !session || pausePending) return;
+
+    setPausePending(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/interview/session/pause", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, action }),
+        cache: "no-store",
+      });
+
+    const body = (await response.json().catch(() => null)) as
+      | { session?: ActiveInterviewSession; error?: string }
+      | null;
+
+    if (!response.ok || !body?.session) {
+      throw new Error(body?.error || "Unable to update the interview pause state.");
+    }
+
+    const updated = body.session;
+
+    setSession((current) =>
+      current
+        ? {
+            ...current,
+            status: updated.status,
+            endsAt: updated.endsAt,
+            pausedAt: updated.pausedAt,
+            remainingSeconds: updated.remainingSeconds,
+          }
+        : current,
+    );
+
+    sessionStatusRef.current = updated.status;
+
+    setTimeRemaining(
+      updated.status === "PAUSED"
+        ? updated.remainingSeconds ?? 0
+        : Math.max(
+            0,
+            Math.ceil((new Date(updated.endsAt).getTime() - Date.now()) / 1000),
+          ),
+    );
+  } catch {
+    setError(
+      action === "pause"
+        ? "We couldn't pause the interview. Please try again."
+        : "We couldn't resume the interview. Please try again.",
+    );
+  } finally {
+    setPausePending(false);
+  }
+};
+
+
+useEffect(() => {
+  const pauseWhenHidden = () => {
+    if (
+      document.visibilityState === "hidden" &&
+      sessionStatusRef.current === "ACTIVE"
+    ) {
+      void updatePauseState("pause");
+    }
+  };
+
+  document.addEventListener("visibilitychange", pauseWhenHidden);
+
+  return () => {
+    document.removeEventListener("visibilitychange", pauseWhenHidden);
+  };
+}, [updatePauseState]);
+
   useEffect(() => {
     if (!session || session.status !== "ACTIVE") {
       return;
@@ -353,7 +426,10 @@ function InterviewSessionContent() {
     };
   }, [session, completeInterview]);
 
-  const interviewEnded = session?.status !== "ACTIVE";
+  const interviewPaused = session?.status === "PAUSED";
+  const interviewEnded =
+    session?.status === "COMPLETED" ||
+    session?.status === "ABANDONED";
 
   const minutes = Math.floor(timeRemaining / 60);
 
@@ -369,7 +445,7 @@ function InterviewSessionContent() {
     );
   }
 
-  if (error || !session) {
+  if (!session) {
     return (
       <div className="flex h-screen items-center justify-center bg-app px-6 text-center">
         <div>
@@ -411,22 +487,57 @@ function InterviewSessionContent() {
                 : "border-line bg-card text-secondary",
             )}
           >
-            {interviewEnded ? "Interview complete" : formattedTime}
+            {interviewEnded
+              ? "Interview complete"
+              : interviewPaused
+                ? `Paused · ${formattedTime}`
+                : formattedTime}
           </div>
 
           {!interviewEnded && (
-            <button
-              type="button"
-              onClick={() => void completeInterview("USER_ENDED")}
-              disabled={ending}
-              className="inline-flex h-10 items-center gap-2 rounded-full bg-red-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <PhoneOff className="size-4" />
-              {ending ? "Ending..." : "End Session"}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() =>
+                  void updatePauseState(interviewPaused ? "resume" : "pause")
+                }
+                disabled={ending || pausePending}
+                className="inline-flex h-10 items-center rounded-full border border-line bg-card px-5 text-sm font-semibold text-secondary disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {pausePending
+                  ? interviewPaused
+                    ? "Resuming..."
+                    : "Pausing..."
+                  : interviewPaused
+                    ? "Resume Interview"
+                    : "Pause Interview"}
+              </button>
+
+              {!interviewPaused && (
+                <button
+                  type="button"
+                  onClick={() => void completeInterview("USER_ENDED")}
+                  disabled={ending || pausePending}
+                  className="inline-flex h-10 items-center gap-2 rounded-full bg-red-700 px-5 text-sm font-semibold text-white transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <PhoneOff className="size-4" />
+                  {ending ? "Ending..." : "End Session"}
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
+
+      {error && (
+        <div
+          role="alert"
+          className="mx-6 mt-3 rounded-lg border border-error bg-error-bg px-4 py-3 text-sm text-error-text"
+        >
+
+          {error}
+        </div>
+      )}
 
       <div className="flex-1 overflow-hidden">
         {mode === "text" && (
@@ -436,14 +547,22 @@ function InterviewSessionContent() {
             setInput={setInput}
             onSend={handleSend}
             sending={sending}
-            disabled={interviewEnded || ending}
+            disabled={interviewEnded || interviewPaused || ending}
             ended={interviewEnded}
+            paused={interviewPaused}
             timeRemaining={timeRemaining}
             messagesEndRef={messagesEndRef}
           />
         )}
 
-        {mode === "voice" && <VoiceMode />}
+        {mode === "voice" && <VoiceMode
+          input={input}
+          setInput={setInput}
+          onSend={handleSend}
+          sending={sending}
+          disabled={interviewEnded || interviewPaused || ending}
+          paused={interviewPaused}
+        />}
 
         {mode === "avatar" && (
           <AvatarMode input={input} setInput={setInput} onSend={handleSend} />
@@ -473,6 +592,7 @@ function TextMode({
   onSend,
   sending,
   disabled,
+  paused,
   ended,
   timeRemaining,
   messagesEndRef,
@@ -484,6 +604,7 @@ function TextMode({
   sending: boolean;
   disabled: boolean;
   ended: boolean;
+  paused: boolean;
   timeRemaining: number;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
 }) {
@@ -559,7 +680,11 @@ function TextMode({
               }
             }}
             placeholder={
-              disabled ? "This interview has ended." : "Type your response..."
+              ended
+                ? "This interview has ended."
+                : paused
+                  ? "Interview paused. Resume to continue."
+                  : "Type your response..."
             }
             className="flex-1 bg-transparent text-sm text-primary placeholder:text-placeholder focus:outline-none disabled:cursor-not-allowed"
           />
@@ -581,10 +706,9 @@ function TextMode({
           <span>
             {ended
               ? "Interview complete"
-              : `Est. ${Math.max(
-                  1,
-                  Math.ceil(timeRemaining / 60),
-                )} mins remaining`}
+              : paused
+                ? "Interview paused"
+                : `Est. ${Math.max(1, Math.ceil(timeRemaining / 60))} mins remaining`}
           </span>
         </div>
       </div>
@@ -592,8 +716,101 @@ function TextMode({
   );
 }
 
-function VoiceMode() {
-  const [isRecording, setIsRecording] = useState(false);
+function VoiceMode({
+  input,
+  setInput,
+  onSend,
+  sending,
+  disabled,
+  paused,
+}: {
+  input: string;
+  setInput: (value: string) => void;
+  onSend: () => void | Promise<void>;
+  sending: boolean;
+  disabled: boolean;
+  paused: boolean;
+}) {
+
+  const [recording, setRecording] = useState(false);
+  const [recordingError, setRecordingError] = useState<string | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!audioUrl) return;
+
+    return () => {
+      URL.revokeObjectURL(audioUrl);
+    };
+  }, [audioUrl]);
+
+  useEffect(() => {
+    if (paused && recorderRef.current?.state === "recording") {
+      recorderRef.current.stop();
+    }
+  }, [paused]);
+
+  useEffect(() => {
+    return () => {
+      if (recorderRef.current?.state === "recording") {
+        recorderRef.current.stop();
+      }
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
+
+  const startRecording = async () => {
+  setRecordingError(null);
+
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    setRecordingError("This browser cannot record audio. Try a browser that supports microphone recording.");
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    streamRef.current = stream;
+
+    const recorder = new MediaRecorder(stream);
+    recorderRef.current = recorder;
+    chunksRef.current = [];
+
+    recorder.addEventListener("dataavailable", (event) => {
+      if (event.data.size > 0) {
+        chunksRef.current.push(event.data);
+      }
+    });
+
+    recorder.addEventListener("stop", () => {
+    stream.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    recorderRef.current = null;
+      const audioBlob = new Blob(chunksRef.current, {
+      type: recorder.mimeType || "audio/webm",
+    });
+      if (audioBlob.size > 0) {
+        setAudioUrl(URL.createObjectURL(audioBlob));
+      }
+    setRecording(false);
+  });
+
+    recorder.start();
+    setRecording(true);
+  } catch {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setRecordingError("We couldn't access your microphone. Check your browser permissions, then tap the microphone to retry.");
+  }
+};
+
+  const stopRecording = () => {
+  if (recorderRef.current?.state === "recording") {
+    recorderRef.current.stop();
+  }
+};
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-8">
@@ -608,7 +825,7 @@ function VoiceMode() {
               key={index}
               className={cn(
                 "w-1.5 rounded-full transition-all duration-300",
-                isRecording ? "animate-pulse bg-gray-900" : "bg-gray-400",
+                recording ? "animate-pulse bg-gray-900" : "bg-gray-400",
               )}
               style={{
                 height: `${height}%`,
@@ -620,10 +837,11 @@ function VoiceMode() {
 
       <button
         type="button"
-        onClick={() => setIsRecording((current) => !current)}
+        onClick={recording ? stopRecording : startRecording}
+        disabled={disabled}
         className={cn(
           "flex h-16 w-16 items-center justify-center rounded-full transition-colors",
-          isRecording
+          recording
             ? "bg-red-100 text-red-600"
             : "bg-gray-100 text-gray-700 hover:bg-gray-200",
         )}
@@ -632,8 +850,29 @@ function VoiceMode() {
       </button>
 
       <p className="text-sm text-gray-500">
-        {isRecording ? "Recording... tap to stop" : "Tap to start recording"}
+        {recording ? "Recording... tap to stop" : "Tap to start recording"}
       </p>
+      {audioUrl && (
+        <audio
+          key={audioUrl}
+          controls
+          preload="metadata"
+          src={audioUrl}
+        />
+      )}
+      {recordingError && (
+        <div
+          role="alert"
+          className="w-full max-w-xl space-y-2 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800"
+        >
+          <p className="font-semibold">Voice mode is unavailable.</p>
+          <p>{recordingError}</p>
+          <p>
+            Enable microphone access, or use a browser that supports recording.
+            Then tap the microphone to try again.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

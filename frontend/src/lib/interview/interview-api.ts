@@ -84,9 +84,11 @@ function parseSession(raw: unknown): ActiveInterviewSession | null {
     title: typeof body.title === "string" && body.title ? body.title : "Interview",
     mode: body.mode,
     status:
-      body.status === "COMPLETED" || body.status === "ABANDONED"
-        ? body.status
-        : "ACTIVE",
+      body.status === "PAUSED" ||
+      body.status === "COMPLETED" ||
+      body.status === "ABANDONED"
+    ? body.status
+    : "ACTIVE",
     startedAt:
       typeof body.startedAt === "string"
         ? body.startedAt
@@ -95,6 +97,12 @@ function parseSession(raw: unknown): ActiveInterviewSession | null {
       typeof body.endsAt === "string"
         ? body.endsAt
         : new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+    pausedAt:
+      typeof body.pausedAt === "string" ? body.pausedAt : null,
+    remainingSeconds:
+      typeof body.remainingSeconds === "number"
+        ? body.remainingSeconds
+        : null,
     durationMinutes:
       typeof body.durationMinutes === "number"
         ? body.durationMinutes
@@ -204,6 +212,62 @@ export async function loadInterviewSession(
     return { ok: true, session };
   } catch (error) {
     console.error("Loading interview failed:", error);
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+export type UpdateInterviewPauseResult =
+  | { ok: true; session: ActiveInterviewSession }
+  | {
+      ok: false;
+      reason:
+        | "unauthenticated"
+        | "not-found"
+        | "inactive"
+        | "unavailable";
+    };
+
+export async function updateInterviewPause(
+  idToken: string,
+  sessionId: string,
+  action: "pause" | "resume",
+): Promise<UpdateInterviewPauseResult> {
+  const base = backendUrl();
+
+  if (!base) {
+    return { ok: false, reason: "unavailable" };
+  }
+
+  try {
+    const response = await fetch(
+      `${base}/interviews/${encodeURIComponent(sessionId)}/${action}`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${idToken}` },
+        cache: "no-store",
+      },
+    );
+
+    if (response.status === 401 || response.status === 403) {
+      return { ok: false, reason: "unauthenticated" };
+    }
+    if (response.status === 404) {
+      return { ok: false, reason: "not-found" };
+    }
+    if (response.status === 409) {
+      return { ok: false, reason: "inactive" };
+    }
+    if (!response.ok) {
+      return { ok: false, reason: "unavailable" };
+    }
+
+    const session = parseSession(await response.json().catch(() => null));
+
+    return session
+      ? { ok: true, session }
+      : { ok: false, reason: "unavailable" };
+  } catch (error) {
+    console.error("Updating interview pause state failed:", error);
     return { ok: false, reason: "unavailable" };
   }
 }
@@ -512,7 +576,7 @@ export type InterviewHistoryItem = {
   mode: InterviewMode;
   industry: string | null;
   role: string | null;
-  status: "ACTIVE" | "COMPLETED" | "ABANDONED";
+  status: "ACTIVE" | "COMPLETED" | "PAUSED" | "ABANDONED";
   durationMinutes: number;
   startedAt: string;
   completedAt: string | null;

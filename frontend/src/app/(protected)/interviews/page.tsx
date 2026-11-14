@@ -391,7 +391,9 @@ function StatusDot({
           ? "bg-green-500"
           : status === "ABANDONED"
             ? "bg-red-400"
-            : "bg-yellow-400"
+            : status === "PAUSED"
+              ? "bg-blue-400"
+              : "bg-yellow-400",
       )}
     />
   );
@@ -410,14 +412,18 @@ function StatusBadge({
           ? "bg-green-100 text-green-700"
           : status === "ABANDONED"
             ? "bg-red-100 text-red-700"
-            : "bg-yellow-100 text-yellow-700"
+            : status === "PAUSED"
+              ? "bg-blue-100 text-blue-700"
+              : "bg-yellow-100 text-yellow-700",
       )}
     >
       {status === "COMPLETED"
         ? "Completed"
         : status === "ABANDONED"
           ? "Abandoned"
-          : "Active"}
+          : status === "PAUSED"
+            ? "Paused"
+            : "Active"}
     </span>
   );
 }

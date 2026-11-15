@@ -40,6 +40,7 @@ const resumeReviewRepository = require("./resumes/resume-review-repository");
 const { createKnowledgeRouter } = require("./knowledge/knowledge-routes");
 
 const { createInterviewRouter } = require("./interview/interview-routes");
+const interviewAudioStorage = require("./interview/interview-audio-storage");
 const interviewRepository = require("./interview/interview-repository");
 const interviewAiService = require("./interview/interview-ai-service");
 const interviewResumeContextService = require("./interview/resume-context-service");
@@ -502,6 +503,7 @@ app.use(
     repository: interviewRepository,
     aiService: interviewAiService,
     resumeContextService: interviewResumeContextService,
+    audioStorage: interviewAudioStorage,
     // Role & Company Knowledge Retrieval (Issue #16).
     getTargetJob,
     getTargetJobById,

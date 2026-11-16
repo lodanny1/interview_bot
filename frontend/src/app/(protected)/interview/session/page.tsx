@@ -38,6 +38,11 @@ function InterviewSessionContent() {
 
   const [messages, setMessages] = useState<InterviewMessage[]>([]);
 
+  const currentQuestionId =
+  [...messages]
+    .reverse()
+    .find((message) => message.role === "interviewer")?.id ?? "";
+
   const [input, setInput] = useState("");
 
   const [sending, setSending] = useState(false);
@@ -562,6 +567,8 @@ useEffect(() => {
           sending={sending}
           disabled={interviewEnded || interviewPaused || ending}
           paused={interviewPaused}
+          sessionId={sessionId ?? ""}
+          questionMessageId={currentQuestionId}
         />}
 
         {mode === "avatar" && (
@@ -718,6 +725,8 @@ function TextMode({
 
 function VoiceMode({
   input,
+  sessionId,
+  questionMessageId,
   setInput,
   onSend,
   sending,
@@ -730,14 +739,18 @@ function VoiceMode({
   sending: boolean;
   disabled: boolean;
   paused: boolean;
+  sessionId: string;
+  questionMessageId: string;
 }) {
 
   const [recording, setRecording] = useState(false);
   const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [recordingNotice, setRecordingNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!audioUrl) return;
@@ -761,6 +774,52 @@ function VoiceMode({
       streamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
+
+  const uploadRecording = async (blob: Blob) => {
+  if (!sessionId || !questionMessageId) {
+    setRecordingError("The interview question could not be identified. Please refresh and try again.");
+    return;
+  }
+
+  setUploading(true);
+  setRecordingError(null);
+  setRecordingNotice("Uploading your recording…");
+
+  try {
+    const query = new URLSearchParams({
+      sessionId,
+      questionMessageId,
+    });
+
+    const response = await fetch(
+      `/api/interview/session/recording?${query}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": blob.type || "audio/webm",
+        },
+        body: blob,
+      },
+    );
+
+    const result = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(result?.error || "We couldn't upload your recording. Try recording again.");
+    }
+
+    setRecordingNotice("Recording uploaded successfully.");
+  } catch (uploadError) {
+    setRecordingNotice(null);
+    setRecordingError(
+      uploadError instanceof Error
+        ? uploadError.message
+        : "We couldn't upload your recording. Try recording again.",
+    );
+  } finally {
+    setUploading(false);
+  }
+};
 
   const startRecording = async () => {
   setRecordingError(null);
@@ -793,16 +852,45 @@ function VoiceMode({
     });
       if (audioBlob.size > 0) {
         setAudioUrl(URL.createObjectURL(audioBlob));
+        void uploadRecording(audioBlob);
+      } else {
+        setRecordingError("No audio was captured. Please try recording again.");
       }
     setRecording(false);
   });
 
     recorder.start();
     setRecording(true);
-  } catch {
+  } catch (captureError) {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
-    setRecordingError("We couldn't access your microphone. Check your browser permissions, then tap the microphone to retry.");
+
+    const errorName =
+      captureError instanceof DOMException ? captureError.name : "";
+
+    if (errorName === "NotAllowedError" || errorName === "SecurityError") {
+      setRecordingError(
+        "Microphone access was denied. Allow it in browser settings.",
+      );
+    } else if (
+      errorName === "NotFoundError" ||
+      errorName === "DevicesNotFoundError"
+    ) {
+      setRecordingError(
+        "No microphone was found. Connect a microphone.",
+      );
+    } else if (
+      errorName === "NotReadableError" ||
+      errorName === "TrackStartError"
+    ) {
+      setRecordingError(
+        "The microphone is busy or unavailable. Close other apps using it.",
+      );
+    } else {
+      setRecordingError(
+        "We couldn't start recording. Check your microphone.",
+      );
+    }
   }
 };
 
@@ -838,7 +926,7 @@ function VoiceMode({
       <button
         type="button"
         onClick={recording ? stopRecording : startRecording}
-        disabled={disabled}
+        disabled={disabled || uploading}
         className={cn(
           "flex h-16 w-16 items-center justify-center rounded-full transition-colors",
           recording
@@ -850,8 +938,20 @@ function VoiceMode({
       </button>
 
       <p className="text-sm text-gray-500">
-        {recording ? "Recording... tap to stop" : "Tap to start recording"}
+        {uploading
+          ? "Uploading recording…"
+          : recording
+            ? "Recording… tap to stop"
+            : "Tap to start recording"}
       </p>
+
+      {recordingNotice && (
+        <p role="status" className="text-sm text-gray-500">
+          {recordingNotice}
+        </p>
+      )}
+
+
       {audioUrl && (
         <audio
           key={audioUrl}
@@ -868,7 +968,6 @@ function VoiceMode({
           <p className="font-semibold">Voice mode is unavailable.</p>
           <p>{recordingError}</p>
           <p>
-            Enable microphone access, or use a browser that supports recording.
             Then tap the microphone to try again.
           </p>
         </div>

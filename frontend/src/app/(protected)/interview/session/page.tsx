@@ -861,10 +861,36 @@ function VoiceMode({
 
     recorder.start();
     setRecording(true);
-  } catch {
+  } catch (captureError) {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
-    setRecordingError("We couldn't access your microphone. Check your browser permissions, then tap the microphone to retry.");
+
+    const errorName =
+      captureError instanceof DOMException ? captureError.name : "";
+
+    if (errorName === "NotAllowedError" || errorName === "SecurityError") {
+      setRecordingError(
+        "Microphone access was denied. Allow it in browser settings.",
+      );
+    } else if (
+      errorName === "NotFoundError" ||
+      errorName === "DevicesNotFoundError"
+    ) {
+      setRecordingError(
+        "No microphone was found. Connect a microphone.",
+      );
+    } else if (
+      errorName === "NotReadableError" ||
+      errorName === "TrackStartError"
+    ) {
+      setRecordingError(
+        "The microphone is busy or unavailable. Close other apps using it.",
+      );
+    } else {
+      setRecordingError(
+        "We couldn't start recording. Check your microphone.",
+      );
+    }
   }
 };
 
@@ -942,7 +968,6 @@ function VoiceMode({
           <p className="font-semibold">Voice mode is unavailable.</p>
           <p>{recordingError}</p>
           <p>
-            Enable microphone access, or use a browser that supports recording.
             Then tap the microphone to try again.
           </p>
         </div>

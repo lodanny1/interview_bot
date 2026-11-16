@@ -1,4 +1,5 @@
 const express = require("express");
+const { sanitizeWords } = require("./word-timing");
 
 function createInterviewRouter({
   requireActiveUser,
@@ -18,6 +19,8 @@ function createInterviewRouter({
       role: message.role,
       content: message.content,
       timestamp: message.created_at,
+      // Word timing for spoken answers (#23). Omitted when there is none.
+      ...(message.words ? { words: message.words } : {}),
     };
   }
 
@@ -377,6 +380,10 @@ function createInterviewRouter({
         });
       }
 
+      // Optional word timing from speech-to-text. Invalid timing is dropped, not
+      // rejected, so a voice processing problem never blocks the answer itself.
+      const words = sanitizeWords(req.body?.words);
+
       try {
         const session =
           await repository.getInterviewSession(
@@ -403,6 +410,7 @@ function createInterviewRouter({
             sessionId: session.id,
             role: "candidate",
             content,
+            ...(words && { words }),
           });
 
         const transcript =

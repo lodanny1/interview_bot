@@ -48,6 +48,28 @@ function isInterviewMode(value: unknown): value is InterviewMode {
   return typeof value === "string" && (INTERVIEW_MODES as string[]).includes(value);
 }
 
+// Word-level timing for spoken answers (#23). Returns undefined for anything
+// missing or malformed, so bad timing never fails the whole session load; the
+// Speech Analysis card then shows "unavailable" instead of made-up numbers.
+function parseWords(raw: unknown): InterviewMessage["words"] {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+
+  const words: NonNullable<InterviewMessage["words"]> = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") return undefined;
+    const w = item as Record<string, unknown>;
+    if (
+      typeof w.text !== "string" ||
+      typeof w.start !== "number" ||
+      typeof w.end !== "number"
+    ) {
+      return undefined;
+    }
+    words.push({ text: w.text, start: w.start, end: w.end });
+  }
+  return words;
+}
+
 function parseMessage(raw: unknown): InterviewMessage | null {
   if (!raw || typeof raw !== "object") return null;
   const m = raw as Record<string, unknown>;
@@ -56,11 +78,13 @@ function parseMessage(raw: unknown): InterviewMessage | null {
   if (typeof m.id !== "string" && typeof m.id !== "number") return null;
 
   const parsed = new Date(m.timestamp as string | number);
+  const words = m.role === "candidate" ? parseWords(m.words) : undefined;
   return {
     id: String(m.id),
     role: m.role,
     content: m.content,
     timestamp: Number.isNaN(parsed.getTime()) ? new Date() : parsed,
+    ...(words && { words }),
   };
 }
 
@@ -232,7 +256,9 @@ export type SendInterviewMessageResult =
 export async function sendInterviewMessage(
   idToken: string,
   sessionId: string,
-  content: string
+  content: string,
+  // Word timing from speech-to-text (#23). Omit for text answers.
+  words?: Array<{ text: string; start: number; end: number }>
 ): Promise<SendInterviewMessageResult> {
   const base = backendUrl();
 
@@ -257,6 +283,7 @@ export async function sendInterviewMessage(
         },
         body: JSON.stringify({
           content,
+          ...(words && words.length > 0 && { words }),
         }),
         cache: "no-store",
       }

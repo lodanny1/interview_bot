@@ -183,6 +183,14 @@ export default function InterviewHistoryDetailPage() {
             {session.durationMinutes} minute interview
           </p>
         </div>
+        {(session.status === "ACTIVE" || session.status === "PAUSED") && (
+          <Link
+            href={`/interview/session?id=${encodeURIComponent(session.id)}`}
+            className="inline-flex h-10 items-center rounded-full bg-gray-900 px-5 text-sm font-semibold text-white hover:bg-gray-700"
+          >
+            {session.status === "PAUSED" ? "Resume Interview" : "Return to Interview"}
+          </Link>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
@@ -376,8 +384,7 @@ function ModeIcon({
 function StatusBadge({
   status,
 }: {
-  status:
-    ActiveInterviewSession["status"];
+  status: ActiveInterviewSession["status"];
 }) {
   return (
     <span
@@ -387,14 +394,18 @@ function StatusBadge({
           ? "bg-green-100 text-green-700"
           : status === "ABANDONED"
             ? "bg-red-100 text-red-700"
-            : "bg-yellow-100 text-yellow-700"
+            : status === "PAUSED"
+              ? "bg-blue-100 text-blue-700"
+              : "bg-yellow-100 text-yellow-700",
       )}
     >
       {status === "COMPLETED"
         ? "Completed"
         : status === "ABANDONED"
           ? "Abandoned"
-          : "Active"}
+          : status === "PAUSED"
+            ? "Paused"
+            : "Active"}
     </span>
   );
 }

@@ -49,6 +49,8 @@ export function createMockSession(input: StartInterviewInput): ActiveInterviewSe
     durationMinutes: 30,
     completionReason: null,
     messages: [firstQuestion(input.focusArea)],
+    pausedAt: null,
+    remainingSeconds: null,
   };
 
   store().set(session.id, session);
@@ -73,6 +75,8 @@ export function getMockSession(id: string): ActiveInterviewSession | null {
       durationMinutes: 30,
       completionReason: null,
       messages: [firstQuestion("mixed")],
+      pausedAt: null,
+      remainingSeconds: null,
     };
   }
   return null;

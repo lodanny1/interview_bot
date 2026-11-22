@@ -17,6 +17,10 @@ import {
 
 import { cn } from "@/lib/utils";
 
+import SpeechAnalysisCard from "@/components/feedback/SpeechAnalysisCard";
+import { computeSpeechMetrics } from "@/lib/speech/metrics";
+import { getCandidateWords } from "@/lib/speech/session-words";
+
 import type {
   ActiveInterviewSession,
   InterviewMessage,
@@ -153,6 +157,10 @@ export default function InterviewHistoryDetailPage() {
     );
   }
 
+  // Plain function call (not a hook), so it is fine after the early returns above.
+  // No word timing yet (#23) => the card shows an "unavailable" state, not fake numbers.
+  const speechMetrics = computeSpeechMetrics(getCandidateWords(session));
+
   return (
     <div className="mx-auto max-w-6xl p-8">
       <Link
@@ -264,6 +272,8 @@ export default function InterviewHistoryDetailPage() {
               />
             </dl>
           </div>
+
+          <SpeechAnalysisCard metrics={speechMetrics} />
 
           <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-5">
             <h2 className="font-semibold text-gray-900">

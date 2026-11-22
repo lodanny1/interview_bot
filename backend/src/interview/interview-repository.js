@@ -138,6 +138,54 @@ async function getInterviewSession(userId, sessionId) {
   }
 }
 
+async function createInterviewRecording({
+  sessionId,
+  questionMessageId,
+  s3Key,
+  contentType,
+  sizeBytes,
+}) {
+  if (
+    !sessionId ||
+    !questionMessageId ||
+    !s3Key ||
+    !contentType ||
+    !Number.isInteger(sizeBytes) ||
+    sizeBytes <= 0
+  ) {
+    throw new Error("Valid recording details are required");
+  }
+
+  const pool = await createPool();
+
+  try {
+    const result = await pool.query(
+      `
+        INSERT INTO interview_recordings (
+          session_id,
+          question_message_id,
+          s3_key,
+          content_type,
+          size_bytes
+        )
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING
+          id,
+          session_id,
+          question_message_id,
+          content_type,
+          size_bytes,
+          uploaded_at
+      `,
+      [sessionId, questionMessageId, s3Key, contentType, sizeBytes],
+    );
+
+    return result.rows[0];
+  } finally {
+    await pool.end();
+  }
+}
+
 async function addInterviewMessage({
   sessionId,
   role,
@@ -291,6 +339,7 @@ module.exports = {
   listInterviewSessions,
   pauseInterviewSession,
   resumeInterviewSession,
+  createInterviewRecording,
 };
 
 async function completeInterviewSession({

@@ -136,6 +136,8 @@ async function addInterviewMessage({
   sessionId,
   role,
   content,
+  // Word-level timing for spoken answers (#23): [{ text, start, end }]. Optional.
+  words = null,
 }) {
   if (!sessionId) {
     throw new Error("sessionId is required");
@@ -149,9 +151,44 @@ async function addInterviewMessage({
     throw new Error("content is required");
   }
 
+  if (words !== null && words !== undefined && !Array.isArray(words)) {
+    throw new Error("words must be an array");
+  }
+
   const pool = await createPool();
 
   try {
+    // Spoken answers with word timing (#23). Everything else uses the original
+    // insert below, unchanged.
+    if (words && words.length > 0) {
+      const withWords = await pool.query(
+        `
+          INSERT INTO interview_messages (
+            session_id,
+            role,
+            content,
+            words
+          )
+          VALUES ($1, $2, $3, $4::jsonb)
+          RETURNING
+            id,
+            session_id,
+            role,
+            content,
+            words,
+            created_at
+        `,
+        [
+          sessionId,
+          role,
+          content.trim(),
+          JSON.stringify(words),
+        ]
+      );
+
+      return withWords.rows[0];
+    }
+
     const result = await pool.query(
       `
         INSERT INTO interview_messages (
@@ -195,6 +232,7 @@ async function getInterviewMessages(sessionId) {
           session_id,
           role,
           content,
+          words,
           created_at
         FROM interview_messages
         WHERE session_id = $1

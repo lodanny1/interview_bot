@@ -48,6 +48,7 @@ export interface InterviewMessage {
   role: "interviewer" | "candidate";
   content: string;
   timestamp: Date;
+  words?: Array<{ text: string; start: number; end: number }>;
 }
 
 export interface FeedbackReport {
@@ -83,11 +84,7 @@ export interface ActiveInterviewSession {
   startedAt: string;
   endsAt: string;
   durationMinutes: number;
-  completionReason:
-    | "USER_ENDED"
-    | "TIME_LIMIT"
-    | "ABANDONED"
-    | null;
+  completionReason: "USER_ENDED" | "TIME_LIMIT" | "ABANDONED" | null;
   // Everything said so far. Right after start this holds the first question;
   // when a session is reloaded it holds the transcript the backend has stored.
   messages: InterviewMessage[];

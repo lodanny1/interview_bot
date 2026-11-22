@@ -80,9 +80,11 @@ export interface ActiveInterviewSession {
   id: string;
   title: string;
   mode: InterviewMode;
-  status: "ACTIVE" | "COMPLETED" | "ABANDONED";
+  status: "ACTIVE" | "PAUSED" | "COMPLETED" | "ABANDONED";
   startedAt: string;
   endsAt: string;
+  pausedAt: string | null;
+  remainingSeconds: number | null;
   durationMinutes: number;
   completionReason: "USER_ENDED" | "TIME_LIMIT" | "ABANDONED" | null;
   // Everything said so far. Right after start this holds the first question;

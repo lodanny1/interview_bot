@@ -1,10 +1,12 @@
 const express = require("express");
+const crypto = require("crypto");
 const { sanitizeWords } = require("./word-timing");
 
 function createInterviewRouter({
   requireActiveUser,
   repository,
   aiService,
+  audioStorage,
   resumeContextService = null,
   getTargetJob = null,
   getTargetJobById = null,
@@ -31,6 +33,8 @@ function createInterviewRouter({
       mode: session.mode,
       status: session.status,
       startedAt: session.started_at,
+      pausedAt: session.paused_at,
+      remainingSeconds: session.remaining_seconds,
       endsAt: session.ends_at,
       durationMinutes: session.duration_minutes,
       completionReason: session.completion_reason,
@@ -524,6 +528,195 @@ function createInterviewRouter({
         });
       }
     }
+  );
+
+  router.post("/interviews/:id/pause", async (req, res) => {
+    const auth = await requireActiveUser(req);
+
+  if (!auth.ok) {
+    return res.status(auth.status).json({ error: auth.error });
+  }
+
+  try {
+    const current = await repository.getInterviewSession(
+      auth.user.id,
+      req.params.id,
+    );
+
+    if (!current) {
+      return res.status(404).json({ error: "Interview session not found" });
+    }
+
+    if (current.status === "PAUSED") {
+      return res.status(200).json({ session: toSessionResponse(current) });
+    }
+
+    if (current.status !== "ACTIVE") {
+      return res.status(409).json({ error: "Interview session is not active" });
+    }
+
+    const paused = await repository.pauseInterviewSession({
+      userId: auth.user.id,
+      sessionId: req.params.id,
+    });
+
+    if (!paused) {
+      return res.status(409).json({ error: "Interview session could not be paused" });
+    }
+
+    return res.status(200).json({ session: toSessionResponse(paused) });
+  } catch (error) {
+    logger.error("POST /interviews/:id/pause failed:", error);
+    return res.status(500).json({ error: "Unable to pause interview session" });
+  }
+});
+
+router.post("/interviews/:id/resume", async (req, res) => {
+  const auth = await requireActiveUser(req);
+
+  if (!auth.ok) {
+    return res.status(auth.status).json({ error: auth.error });
+  }
+
+  try {
+    const current = await repository.getInterviewSession(
+      auth.user.id,
+      req.params.id,
+    );
+
+    if (!current) {
+      return res.status(404).json({ error: "Interview session not found" });
+    }
+
+    if (current.status === "ACTIVE") {
+      return res.status(200).json({ session: toSessionResponse(current) });
+    }
+
+    if (current.status !== "PAUSED") {
+      return res.status(409).json({ error: "Interview session is not paused" });
+    }
+
+    const resumed = await repository.resumeInterviewSession({
+      userId: auth.user.id,
+      sessionId: req.params.id,
+    });
+
+    if (!resumed) {
+      return res.status(409).json({ error: "Interview session could not be resumed" });
+    }
+
+    return res.status(200).json({ session: toSessionResponse(resumed) });
+  } catch (error) {
+    logger.error("POST /interviews/:id/resume failed:", error);
+    return res.status(500).json({ error: "Unable to resume interview session" });
+  }
+});
+
+  const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
+
+  router.post(
+    "/interviews/:id/recordings",
+    express.raw({
+      type: ["audio/webm", "audio/mp4"],
+      limit: MAX_AUDIO_BYTES,
+    }),
+    async (req, res) => {
+      const auth = await requireActiveUser(req);
+
+      if (!auth.ok) {
+        return res.status(auth.status).json({ error: auth.error });
+      }
+
+      const questionMessageId = req.query.questionMessageId;
+      const contentType = (req.get("Content-Type") || "")
+        .split(";")[0]
+        .trim()
+        .toLowerCase();
+
+      if (!["audio/webm", "audio/mp4"].includes(contentType)) {
+        return res.status(415).json({ error: "Unsupported audio format" });
+      }
+
+      if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+        return res.status(400).json({ error: "Audio recording is required" });
+      }
+
+      if (typeof questionMessageId !== "string") {
+        return res.status(400).json({ error: "Question message ID is required" });
+      }
+
+      try {
+        const session = await repository.getInterviewSession(
+          auth.user.id,
+          req.params.id,
+        );
+
+        if (!session) {
+          return res.status(404).json({ error: "Interview session not found" });
+        }
+
+        if (session.status !== "ACTIVE") {
+          return res.status(409).json({ error: "Interview session is not active" });
+        }
+
+        const messages = await repository.getInterviewMessages(session.id);
+        const latestMessage = messages[messages.length - 1];
+
+        if (
+          !latestMessage ||
+          latestMessage.id !== questionMessageId ||
+          latestMessage.role !== "interviewer"
+        ) {
+          return res.status(400).json({
+            error: "The question does not match the current interview question",
+          });
+        }
+
+        const extension = contentType === "audio/mp4" ? "mp4" : "webm";
+        const s3Key =
+          `interview-audio/${auth.user.id}/${session.id}/` +
+          `${questionMessageId}/${crypto.randomUUID()}.${extension}`;
+
+        try {
+          await audioStorage.putInterviewAudio({
+            key: s3Key,
+            body: req.body,
+            contentType,
+          });
+        } catch (error) {
+          logger.error("Recording S3 upload failed:", error);
+          return res.status(502).json({ error: "Unable to store recording" });
+        }
+
+        let recording;
+
+        try {
+          recording = await repository.createInterviewRecording({
+            sessionId: session.id,
+            questionMessageId,
+            s3Key,
+            contentType,
+            sizeBytes: req.body.length,
+          });
+        } catch (error) {
+          await audioStorage.deleteInterviewAudio(s3Key).catch(() => {});
+          throw error;
+        }
+
+        return res.status(201).json({
+          recording: {
+            id: recording.id,
+            sessionId: recording.session_id,
+            questionMessageId: recording.question_message_id,
+            status: "UPLOADED",
+            uploadedAt: recording.uploaded_at,
+          },
+        });
+      } catch (error) {
+        logger.error("POST /interviews/:id/recordings failed:", error);
+        return res.status(500).json({ error: "Unable to upload recording" });
+      }
+    },
   );
 
   router.post(
